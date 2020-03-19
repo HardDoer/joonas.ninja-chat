@@ -18,7 +18,7 @@ func initEnvFile() {
 }
 
 func initRoutes() {
-	http.HandleFunc("/api/v1/ws/chat", ws.ChatRequest);
+	http.HandleFunc("/api/v1/ws/", ws.ChatRequest);
 	fmt.Println("initRoutes(): Routes initialized.");
 }
 

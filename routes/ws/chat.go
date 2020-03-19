@@ -29,8 +29,8 @@ func reader(connection *websocket.Conn) {
     }
 }
 
-// ChatRequest - Handles chat requests via websocket.
-func ChatRequest(responseWriter http.ResponseWriter, request *http.Request){
+// WebsocketRequest - Handles websocket requests and conveys them to the handler depending on request path.
+func WebsocketRequest(responseWriter http.ResponseWriter, request *http.Request){
     wsConnection, err := upgrader.Upgrade(responseWriter, request, nil);
     if (err != nil) {
         fmt.Println(err);
