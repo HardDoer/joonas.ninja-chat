@@ -4,9 +4,17 @@ import (
     "net/http"
     "fmt"
     "strings"
+    "container/list"
 
 	"github.com/gorilla/websocket"
 )
+
+type chatRequest struct {
+	Type string;
+	Message string;
+}
+
+var clients = list.New();
 
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
@@ -29,7 +37,7 @@ func reader(connection *websocket.Conn) {
     }
 }
 
-func chatRequest(connection *websocket.Conn) {
+func newChatConnection(connection *websocket.Conn) {
     fmt.Println("chatRequest(): Connection opened.");
     reader(connection);
 }
@@ -44,6 +52,6 @@ func WebsocketRequest(responseWriter http.ResponseWriter, request *http.Request)
     pathArray := strings.Split(request.RequestURI, "/");
 
     if (pathArray[len(pathArray) - 1] == "chat") {
-        chatRequest(wsConnection);
+        newChatConnection(wsConnection);
     }
 }
