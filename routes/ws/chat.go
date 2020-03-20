@@ -48,7 +48,6 @@ func reader(connection *websocket.Conn) {
 func newChatConnection(connection *websocket.Conn) {
 	fmt.Println("chatRequest(): Connection opened.");
 	nano := strconv.Itoa(int(time.Now().UnixNano()));
-	fmt.Println(nano);
 	users = append(users, util.User{Name: "Anon" + nano, Connection: connection});
 	reader(connection);
 }
