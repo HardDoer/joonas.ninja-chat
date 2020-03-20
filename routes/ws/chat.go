@@ -1,10 +1,11 @@
 package ws
 
 import (
-	"container/list"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"joonas.ninja-chat/util"
 
@@ -16,7 +17,7 @@ type chatRequest struct {
 	Message string
 }
 
-var users = list.New()
+var users [] util.User;
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -30,7 +31,12 @@ func reader(connection *websocket.Conn) {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println(string(message))
+        fmt.Println(string(message));
+        
+        // This works nicely. We can find the existing user connections in memory.
+        for i := 0; i < len(users); i ++ {
+            fmt.Println(users[i].Name);
+        }
 
 		if err := connection.WriteMessage(messageType, message); err != nil {
 			fmt.Println(err)
@@ -40,9 +46,11 @@ func reader(connection *websocket.Conn) {
 }
 
 func newChatConnection(connection *websocket.Conn) {
-	fmt.Println("chatRequest(): Connection opened.")
-	users.PushBack(util.User{Name: "kikkare", Connection: connection});
-	reader(connection)
+	fmt.Println("chatRequest(): Connection opened.");
+	nano := strconv.Itoa(int(time.Now().UnixNano()));
+	fmt.Println(nano);
+	users = append(users, util.User{Name: "Anon" + nano, Connection: connection});
+	reader(connection);
 }
 
 // WebsocketRequest - Handles websocket requests and conveys them to the handler depending on request path.
