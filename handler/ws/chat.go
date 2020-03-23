@@ -41,6 +41,18 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
+func handleJoinEvent(body string, connection *websocket.Conn) error {
+	return nil
+}
+
+func handleTypingEvent(body string, connection *websocket.Conn) error {
+	return nil
+}
+
+func handleNameChangeEvent(body string, connection *websocket.Conn) error {
+	return nil
+}
+
 func reader(connection *websocket.Conn) {
 	for {
 		var eventData util.EventData
@@ -55,24 +67,22 @@ func reader(connection *websocket.Conn) {
 				fmt.Println(err)
 				return
 			}
-
+			var eventError error
 			switch eventData.Event {
+			case util.EventTypeJoin:
+				eventError = handleJoinEvent(eventData.Body, connection)
 			case util.EventTyping:
-				fmt.Println("two")
-				return
+				eventError = handleTypingEvent(eventData.Body, connection)
 			case util.EventMessage:
-				err := handleMessageEvent(eventData.Body, connection)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
+				eventError = handleMessageEvent(eventData.Body, connection)
 			case util.EventTypeNameChange:
-				fmt.Println("three")
-				return
+				eventError = handleNameChangeEvent(eventData.Body, connection)
 			}
-		} else {
-			return
+			if eventError != nil {
+				fmt.Println(err)
+			}
 		}
+		return
 	}
 }
 

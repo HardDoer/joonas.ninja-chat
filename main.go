@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/joho/godotenv"
-	"joonas.ninja-chat/routes/ws"
+	"joonas.ninja-chat/handler/ws"
 )
 
 func initEnvFile() {
