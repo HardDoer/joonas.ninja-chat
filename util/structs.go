@@ -10,8 +10,8 @@ type User struct {
 	Connection *websocket.Conn
 }
 
-// ChatRequest - A request you can send to the backend.
-type ChatRequest struct {
+// EventData - A data structure that contains information about the current chat event.
+type EventData struct {
 	Event string
 	Body  string
 }

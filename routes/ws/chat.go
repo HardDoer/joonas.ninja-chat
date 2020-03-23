@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -18,22 +19,58 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+func handleMessageEvent(body string, connection *websocket.Conn) error {
+	var senderName = ""
+	for i := 0; i < len(users); i++ {
+		if connection == users[i].Connection {
+			senderName = users[i].Name
+			break
+		}
+	}
+	for i := 0; i < len(users); i++ {
+		fmt.Println("SENDING TO: " + users[i].Name)
+		response := util.EventData{Event: util.EventMessage, Body: senderName + ": " + body}
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			return err
+		}
+		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func reader(connection *websocket.Conn) {
 	for {
+		var eventData util.EventData
 		messageType, message, err := connection.ReadMessage()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println(string(message))
+		if messageType == websocket.TextMessage {
+			err := json.Unmarshal(message, &eventData)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
-		// This works nicely. We can find the existing user connections in memory.
-		for i := 0; i < len(users); i++ {
-			fmt.Println(users[i].Name)
-		}
-
-		if err := connection.WriteMessage(messageType, message); err != nil {
-			fmt.Println(err)
+			switch eventData.Event {
+			case util.EventTyping:
+				fmt.Println("two")
+				return
+			case util.EventMessage:
+				err := handleMessageEvent(eventData.Body, connection)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+			case util.EventTypeNameChange:
+				fmt.Println("three")
+				return
+			}
+		} else {
 			return
 		}
 	}
