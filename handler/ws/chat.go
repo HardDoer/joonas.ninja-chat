@@ -20,14 +20,13 @@ var upgrader = websocket.Upgrader{
 }
 
 func removeUser(connection *websocket.Conn) {
+	var newUsers []util.User
 	for i := 0; i < len(users); i++ {
-		if connection == users[i].Connection {
-			users[i] = users[len(users)-1]
-			// We do not need to put s[i] at the end, as it will be discarded anyway
-			users = users[:len(users)-1]
-			break
+		if connection != users[i].Connection {
+			newUsers = append(newUsers, users[i])
 		}
 	}
+	users = newUsers
 }
 
 func handleMessageEvent(body string, connection *websocket.Conn) error {
