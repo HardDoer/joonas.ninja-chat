@@ -19,6 +19,17 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+func removeUser(connection *websocket.Conn) {
+	for i := 0; i < len(users); i++ {
+		if connection == users[i].Connection {
+			users[i] = users[len(users)-1]
+			// We do not need to put s[i] at the end, as it will be discarded anyway
+			users = users[:len(users)-1]
+			break
+		}
+	}
+}
+
 func handleMessageEvent(body string, connection *websocket.Conn) error {
 	var senderName = ""
 	for i := 0; i < len(users); i++ {
@@ -41,7 +52,18 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
-func handleJoinEvent(body string, connection *websocket.Conn) error {
+func handleJoin(user *util.User, connection *websocket.Conn) error {
+	// TODO: Announce to everyone that this user has joined the chat.
+	var requestUser *util.User = user
+	fmt.Println("SENDING TO: " + requestUser.Name)
+	response := util.EventData{Event: util.EventJoin, Body: requestUser.Name}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+	if err := requestUser.Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -53,44 +75,58 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
-func reader(connection *websocket.Conn) {
+func reader(connection *websocket.Conn) error {
 	for {
 		var eventData util.EventData
 		messageType, message, err := connection.ReadMessage()
 		if err != nil {
 			fmt.Println(err)
-			return
+			return err
 		}
 		if messageType == websocket.TextMessage {
 			err := json.Unmarshal(message, &eventData)
 			if err != nil {
 				fmt.Println(err)
-				return
+				return err
 			}
 			var eventError error
 			switch eventData.Event {
-			case util.EventTypeJoin:
-				eventError = handleJoinEvent(eventData.Body, connection)
 			case util.EventTyping:
 				eventError = handleTypingEvent(eventData.Body, connection)
 			case util.EventMessage:
 				eventError = handleMessageEvent(eventData.Body, connection)
-			case util.EventTypeNameChange:
+			case util.EventNameChange:
 				eventError = handleNameChangeEvent(eventData.Body, connection)
 			}
 			if eventError != nil {
 				fmt.Println(err)
+				return eventError
 			}
 		}
-		return
+		return nil
 	}
 }
 
 func newChatConnection(connection *websocket.Conn) {
 	fmt.Println("chatRequest(): Connection opened.")
+	var connectionError error
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	users = append(users, util.User{Name: "Anon" + nano, Connection: connection})
-	reader(connection)
+	user := util.User{Name: "Anon" + nano, Connection: connection}
+	users = append(users, user)
+	err := handleJoin(&user, connection)
+	if err != nil {
+		connection.Close()
+		removeUser(connection);
+		fmt.Println(err)
+	} else {
+		connectionError = reader(connection)
+		if connectionError != nil {
+			connection.Close()
+			removeUser(connection);
+			fmt.Println(connectionError)
+		}
+	}
+	return
 }
 
 // ChatRequest - A chat request.

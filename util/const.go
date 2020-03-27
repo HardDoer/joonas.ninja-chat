@@ -6,8 +6,8 @@ const EventTyping = "typing"
 // EventMessage - An event which contains a chat message.
 const EventMessage = "message"
 
-// EventTypeJoin - An event which is sent when the user joins the chat.
-const EventTypeJoin = "join"
+// EventJoin - An event which is sent when the user joins the chat.
+const EventJoin = "join"
 
-// EventTypeNameChange - An event which contains information that the user wants to change their name and also the new name.
-const EventTypeNameChange = "nameChange"
+// EventNameChange - An event which contains information that the user wants to change their name and also the new name.
+const EventNameChange = "nameChange"

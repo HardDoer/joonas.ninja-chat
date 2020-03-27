@@ -12,6 +12,6 @@ type User struct {
 
 // EventData - A data structure that contains information about the current chat event.
 type EventData struct {
-	Event string
-	Body  string
+	Event string `json:"event"`
+	Body  string `json:"body"`
 }
