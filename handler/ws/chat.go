@@ -79,13 +79,11 @@ func reader(connection *websocket.Conn) error {
 		var eventData util.EventData
 		messageType, message, err := connection.ReadMessage()
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
 		if messageType == websocket.TextMessage {
 			err := json.Unmarshal(message, &eventData)
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 			var eventError error
@@ -98,7 +96,6 @@ func reader(connection *websocket.Conn) error {
 				eventError = handleNameChangeEvent(eventData.Body, connection)
 			}
 			if eventError != nil {
-				fmt.Println(err)
 				return eventError
 			}
 		}
