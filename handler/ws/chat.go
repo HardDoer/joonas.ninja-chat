@@ -99,7 +99,6 @@ func reader(connection *websocket.Conn) error {
 				return eventError
 			}
 		}
-		return nil
 	}
 }
 
