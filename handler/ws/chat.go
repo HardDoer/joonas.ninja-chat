@@ -52,7 +52,6 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 }
 
 func handleJoin(user *util.User, connection *websocket.Conn) error {
-	// TODO: Announce to everyone that this user has joined the chat.
 	var requestUser *util.User = user
 	fmt.Println("SENDING TO: " + requestUser.Name)
 	response := util.EventData{Event: util.EventJoin, Body: requestUser.Name}
@@ -63,7 +62,45 @@ func handleJoin(user *util.User, connection *websocket.Conn) error {
 	if err := requestUser.Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 		return err
 	}
+	for i := 0; i < len(users); i++ {
+		if users[i].Connection != connection {
+			fmt.Println("SENDING TO: " + users[i].Name)
+			response := util.EventData{Event: util.EventMessage, Body: requestUser.Name + " has joined the chat."}
+			jsonResponse, err := json.Marshal(response)
+			if err != nil {
+				return err
+			}
+			if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
+}
+
+func sendToAll(body string) {
+	for i := 0; i < len(users); i++ {
+		fmt.Println("SENDING TO: " + users[i].Name)
+		response := util.EventData{Event: util.EventMessage, Body: body}
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			fmt.Printf("sendToAll(): ")
+			fmt.Println(err)
+		}
+		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+			fmt.Printf("sendToAll(): ")
+			fmt.Println(err)
+		}
+	}
+}
+
+func getUserName(connection *websocket.Conn) string {
+	for i := 0; i < len(users); i++ {
+		if users[i].Connection == connection {
+			return users[i].Name
+		}
+	}
+	return ""
 }
 
 func handleTypingEvent(body string, connection *websocket.Conn) error {
@@ -111,13 +148,15 @@ func newChatConnection(connection *websocket.Conn) {
 	err := handleJoin(&user, connection)
 	if err != nil {
 		connection.Close()
-		removeUser(connection);
+		removeUser(connection)
 		fmt.Println(err)
 	} else {
 		connectionError = reader(connection)
 		if connectionError != nil {
 			connection.Close()
-			removeUser(connection);
+			name := getUserName(connection)
+			removeUser(connection)
+			sendToAll(name + " has left the chatroom.")
 			fmt.Println(connectionError)
 		}
 	}
