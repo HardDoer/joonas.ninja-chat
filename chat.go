@@ -1,4 +1,4 @@
-package ws
+package main
 
 import (
 	"encoding/json"
@@ -7,12 +7,16 @@ import (
 	"strconv"
 	"time"
 
-	"joonas.ninja-chat/util"
-
 	"github.com/gorilla/websocket"
 )
 
-var users []util.User
+// EventData - A data structure that contains information about the current chat event.
+type eventData struct {
+	Event string `json:"event"`
+	Body  string `json:"body"`
+}
+
+var users []User
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -20,7 +24,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func removeUser(connection *websocket.Conn) {
-	var newUsers []util.User
+	var newUsers []User
 	for i := 0; i < len(users); i++ {
 		if connection != users[i].Connection {
 			newUsers = append(newUsers, users[i])
@@ -39,7 +43,7 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 	}
 	for i := 0; i < len(users); i++ {
 		fmt.Println("SENDING TO: " + users[i].Name)
-		response := util.EventData{Event: util.EventMessage, Body: senderName + ": " + body}
+		response := eventData{Event: EventMessage, Body: senderName + ": " + body}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			return err
@@ -51,10 +55,10 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
-func handleJoin(user *util.User, connection *websocket.Conn) error {
-	var requestUser *util.User = user
+func handleJoin(chatUser *User, connection *websocket.Conn) error {
+	var requestUser *User = chatUser
 	fmt.Println("SENDING TO: " + requestUser.Name)
-	response := util.EventData{Event: util.EventJoin, Body: requestUser.Name}
+	response := eventData{Event: EventJoin, Body: requestUser.Name}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		return err
@@ -65,7 +69,7 @@ func handleJoin(user *util.User, connection *websocket.Conn) error {
 	for i := 0; i < len(users); i++ {
 		if users[i].Connection != connection {
 			fmt.Println("SENDING TO: " + users[i].Name)
-			response := util.EventData{Event: util.EventMessage, Body: requestUser.Name + " has joined the chat."}
+			response := eventData{Event: EventMessage, Body: requestUser.Name + " has joined the chat."}
 			jsonResponse, err := json.Marshal(response)
 			if err != nil {
 				return err
@@ -81,7 +85,7 @@ func handleJoin(user *util.User, connection *websocket.Conn) error {
 func sendToAll(body string) {
 	for i := 0; i < len(users); i++ {
 		fmt.Println("SENDING TO: " + users[i].Name)
-		response := util.EventData{Event: util.EventMessage, Body: body}
+		response := eventData{Event: EventMessage, Body: body}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			fmt.Printf("sendToAll(): ")
@@ -113,7 +117,7 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 
 func reader(connection *websocket.Conn) error {
 	for {
-		var eventData util.EventData
+		var eventData eventData
 		messageType, message, err := connection.ReadMessage()
 		if err != nil {
 			return err
@@ -125,11 +129,11 @@ func reader(connection *websocket.Conn) error {
 			}
 			var eventError error
 			switch eventData.Event {
-			case util.EventTyping:
+			case EventTyping:
 				eventError = handleTypingEvent(eventData.Body, connection)
-			case util.EventMessage:
+			case EventMessage:
 				eventError = handleMessageEvent(eventData.Body, connection)
-			case util.EventNameChange:
+			case EventNameChange:
 				eventError = handleNameChangeEvent(eventData.Body, connection)
 			}
 			if eventError != nil {
@@ -143,9 +147,9 @@ func newChatConnection(connection *websocket.Conn) {
 	fmt.Println("chatRequest(): Connection opened.")
 	var connectionError error
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	user := util.User{Name: "Anon" + nano, Connection: connection}
-	users = append(users, user)
-	err := handleJoin(&user, connection)
+	User := User{Name: "Anon" + nano, Connection: connection}
+	users = append(users, User)
+	err := handleJoin(&User, connection)
 	if err != nil {
 		connection.Close()
 		removeUser(connection)

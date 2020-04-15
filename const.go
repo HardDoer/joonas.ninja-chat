@@ -1,4 +1,4 @@
-package util
+package main
 
 // EventTyping - An event which implies that the user is currently typing.
 const EventTyping = "typing"
