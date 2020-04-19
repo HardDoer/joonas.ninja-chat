@@ -138,7 +138,9 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	if len(body) < 64 {
 		var originalName string
 		for i := 0; i < len(users); i++ {
+			fmt.Println("handleNameChangeEvent(): " + users[i].Name);
 			if connection == users[i].Connection {
+				fmt.Println("handleNameChangeEvent(): changing name to " + body);
 				originalName = users[i].Name
 				users[i].Name = body
 				response := eventData{Event: EventNameChange, Body: users[i].Name, UserCount: len(users)}
@@ -149,9 +151,10 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 				if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 					return err
 				}
+				break 
 			}
-			break
 		}
+		fmt.Println("sdfgsdfgsdfg: " + originalName)
 		sendToOther(originalName + " is now called " + body, connection, EventNotification)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
