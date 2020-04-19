@@ -36,8 +36,8 @@ func removeUser(connection *websocket.Conn) {
 
 // sendToAll - sends the body string data to all connected clients
 func sendToAll(body string, eventType string) {
+	fmt.Println("sendToAll(): " + body)
 	for i := 0; i < len(users); i++ {
-		fmt.Println("SENDING TO: " + users[i].Name)
 		response := eventData{Event: eventType, Body: body, UserCount: len(users)}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
@@ -53,9 +53,9 @@ func sendToAll(body string, eventType string) {
 
 // sendToOther - sends the body string data to all connected clients except the parameter given client
 func sendToOther(body string, connection *websocket.Conn, eventType string) {
+	fmt.Println("sendToOther(): " + body)
 	for i := 0; i < len(users); i++ {
 		if users[i].Connection != connection {
-			fmt.Println("SENDING TO: " + users[i].Name)
 			response := eventData{Event: eventType, Body: body, UserCount: len(users)}
 			jsonResponse, err := json.Marshal(response)
 			if err != nil {
@@ -117,7 +117,6 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 
 func handleJoin(chatUser *User, connection *websocket.Conn) error {
 	var requestUser *User = chatUser
-	fmt.Println("SENDING TO: " + requestUser.Name)
 	response := eventData{Event: EventJoin, Body: requestUser.Name, UserCount: len(users)}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
@@ -138,9 +137,8 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	if len(body) < 64 {
 		var originalName string
 		for i := 0; i < len(users); i++ {
-			fmt.Println("handleNameChangeEvent(): " + users[i].Name);
+			fmt.Println("handleNameChangeEvent(): User " + users[i].Name + " is changing name.")
 			if connection == users[i].Connection {
-				fmt.Println("handleNameChangeEvent(): changing name to " + body);
 				originalName = users[i].Name
 				users[i].Name = body
 				response := eventData{Event: EventNameChange, Body: users[i].Name, UserCount: len(users)}
@@ -151,11 +149,10 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 				if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 					return err
 				}
-				break 
+				break
 			}
 		}
-		fmt.Println("sdfgsdfgsdfg: " + originalName)
-		sendToOther(originalName + " is now called " + body, connection, EventNotification)
+		sendToOther(originalName+" is now called "+body, connection, EventNotification)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
 		fmt.Println("New name is too long")
