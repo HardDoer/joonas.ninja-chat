@@ -12,8 +12,9 @@ import (
 
 // EventData - A data structure that contains information about the current chat event.
 type eventData struct {
-	Event string `json:"event"`
-	Body  string `json:"body"`
+	Event     string `json:"event"`
+	Body      string `json:"body"`
+	UserCount int    `json:"userCount"`
 }
 
 var users []User
@@ -33,67 +34,38 @@ func removeUser(connection *websocket.Conn) {
 	users = newUsers
 }
 
-func handleMessageEvent(body string, connection *websocket.Conn) error {
-	var senderName = ""
-	for i := 0; i < len(users); i++ {
-		if connection == users[i].Connection {
-			senderName = users[i].Name
-			break
-		}
-	}
+// sendToAll - sends the body string data to all connected clients
+func sendToAll(body string, eventType string) {
 	for i := 0; i < len(users); i++ {
 		fmt.Println("SENDING TO: " + users[i].Name)
-		response := eventData{Event: EventMessage, Body: senderName + ": " + body}
+		response := eventData{Event: eventType, Body: body, UserCount: len(users)}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
-			return err
+			fmt.Printf("sendToAll(): ")
+			fmt.Println(err)
 		}
 		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
-			return err
+			fmt.Printf("sendToAll(): ")
+			fmt.Println(err)
 		}
 	}
-	return nil
 }
 
-func handleJoin(chatUser *User, connection *websocket.Conn) error {
-	var requestUser *User = chatUser
-	fmt.Println("SENDING TO: " + requestUser.Name)
-	response := eventData{Event: EventJoin, Body: requestUser.Name}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-	if err := requestUser.Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
-		return err
-	}
+// sendToOther - sends the body string data to all connected clients except the parameter given client
+func sendToOther(body string, connection *websocket.Conn, eventType string) {
 	for i := 0; i < len(users); i++ {
 		if users[i].Connection != connection {
 			fmt.Println("SENDING TO: " + users[i].Name)
-			response := eventData{Event: EventMessage, Body: requestUser.Name + " has joined the chat."}
+			response := eventData{Event: eventType, Body: body, UserCount: len(users)}
 			jsonResponse, err := json.Marshal(response)
 			if err != nil {
-				return err
+				fmt.Printf("sendToOther(): ")
+				fmt.Println(err)
 			}
 			if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
-				return err
+				fmt.Printf("sendToOther(): ")
+				fmt.Println(err)
 			}
-		}
-	}
-	return nil
-}
-
-func sendToAll(body string) {
-	for i := 0; i < len(users); i++ {
-		fmt.Println("SENDING TO: " + users[i].Name)
-		response := eventData{Event: EventMessage, Body: body}
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			fmt.Printf("sendToAll(): ")
-			fmt.Println(err)
-		}
-		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
-			fmt.Printf("sendToAll(): ")
-			fmt.Println(err)
 		}
 	}
 }
@@ -107,11 +79,84 @@ func getUserName(connection *websocket.Conn) string {
 	return ""
 }
 
+func newChatConnection(connection *websocket.Conn) {
+	fmt.Println("chatRequest(): Connection opened.")
+	var connectionError error
+	nano := strconv.Itoa(int(time.Now().UnixNano()))
+	User := User{Name: "Anon" + nano, Connection: connection}
+	users = append(users, User)
+	err := handleJoin(&User, connection)
+	if err != nil {
+		connection.Close()
+		removeUser(connection)
+		fmt.Println(err)
+	} else {
+		connectionError = reader(connection)
+		if connectionError != nil {
+			connection.Close()
+			name := getUserName(connection)
+			removeUser(connection)
+			sendToAll(name+" has left the chatroom.", EventNotification)
+			fmt.Println(connectionError)
+		}
+	}
+	return
+}
+
+func handleMessageEvent(body string, connection *websocket.Conn) error {
+	var senderName = ""
+	for i := 0; i < len(users); i++ {
+		if connection == users[i].Connection {
+			senderName = users[i].Name
+			break
+		}
+	}
+	sendToAll(senderName+": "+body, EventMessage)
+	return nil
+}
+
+func handleJoin(chatUser *User, connection *websocket.Conn) error {
+	var requestUser *User = chatUser
+	fmt.Println("SENDING TO: " + requestUser.Name)
+	response := eventData{Event: EventJoin, Body: requestUser.Name, UserCount: len(users)}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+	if err := requestUser.Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+		return err
+	}
+	sendToOther(requestUser.Name+" has joined the chat.", connection, EventNotification)
+	return nil
+}
+
 func handleTypingEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
 func handleNameChangeEvent(body string, connection *websocket.Conn) error {
+	if len(body) < 64 {
+		var originalName string
+		for i := 0; i < len(users); i++ {
+			if connection == users[i].Connection {
+				originalName = users[i].Name
+				users[i].Name = body
+				response := eventData{Event: EventNameChange, Body: users[i].Name, UserCount: len(users)}
+				jsonResponse, err := json.Marshal(response)
+				if err != nil {
+					return err
+				}
+				if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+					return err
+				}
+			}
+			break
+		}
+		sendToOther(originalName + " is now called " + body, connection, EventNotification)
+	} else {
+		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
+		fmt.Println("New name is too long")
+	}
 	return nil
 }
 
@@ -141,30 +186,6 @@ func reader(connection *websocket.Conn) error {
 			}
 		}
 	}
-}
-
-func newChatConnection(connection *websocket.Conn) {
-	fmt.Println("chatRequest(): Connection opened.")
-	var connectionError error
-	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	User := User{Name: "Anon" + nano, Connection: connection}
-	users = append(users, User)
-	err := handleJoin(&User, connection)
-	if err != nil {
-		connection.Close()
-		removeUser(connection)
-		fmt.Println(err)
-	} else {
-		connectionError = reader(connection)
-		if connectionError != nil {
-			connection.Close()
-			name := getUserName(connection)
-			removeUser(connection)
-			sendToAll(name + " has left the chatroom.")
-			fmt.Println(connectionError)
-		}
-	}
-	return
 }
 
 // ChatRequest - A chat request.
