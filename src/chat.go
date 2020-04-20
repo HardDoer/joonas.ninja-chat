@@ -15,6 +15,7 @@ type eventData struct {
 	Event     string `json:"event"`
 	Body      string `json:"body"`
 	UserCount int    `json:"userCount"`
+	Name      string `json:"name"`
 }
 
 var users []User
@@ -35,10 +36,10 @@ func removeUser(connection *websocket.Conn) {
 }
 
 // sendToAll - sends the body string data to all connected clients
-func sendToAll(body string, eventType string) {
+func sendToAll(body string, name string, eventType string) {
 	fmt.Println("sendToAll(): " + body)
 	for i := 0; i < len(users); i++ {
-		response := eventData{Event: eventType, Body: body, UserCount: len(users)}
+		response := eventData{Event: eventType, Body: body, UserCount: len(users), Name: name}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			fmt.Printf("sendToAll(): ")
@@ -96,7 +97,7 @@ func newChatConnection(connection *websocket.Conn) {
 			connection.Close()
 			name := getUserName(connection)
 			removeUser(connection)
-			sendToAll(name+" has left the chatroom.", EventNotification)
+			sendToAll(name+" has left the chatroom.", "", EventNotification)
 			fmt.Println(connectionError)
 		}
 	}
@@ -111,7 +112,7 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 			break
 		}
 	}
-	sendToAll(senderName+": "+body, EventMessage)
+	sendToAll(body, senderName, EventMessage)
 	return nil
 }
 
