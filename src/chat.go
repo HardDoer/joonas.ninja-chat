@@ -82,7 +82,6 @@ func getUserName(connection *websocket.Conn) string {
 
 func newChatConnection(connection *websocket.Conn) {
 	fmt.Println("chatRequest(): Connection opened.")
-	var connectionError error
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
 	User := User{Name: "Anon" + nano, Connection: connection}
 	users = append(users, User)
@@ -92,14 +91,8 @@ func newChatConnection(connection *websocket.Conn) {
 		removeUser(connection)
 		fmt.Println(err)
 	} else {
-		connectionError = reader(connection)
-		if connectionError != nil {
-			connection.Close()
-			name := getUserName(connection)
-			removeUser(connection)
-			sendToAll(name+" has left the chatroom.", "", EventNotification)
-			fmt.Println(connectionError)
-		}
+		go reader(connection)
+		go writer(connection)
 	}
 	return
 }
@@ -161,29 +154,50 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
-func reader(connection *websocket.Conn) error {
+func writer(connection *websocket.Conn) {
+	defer func() {
+		connection.Close()
+	}()
+	for {
+		time.Sleep(2 * time.Second)
+		fmt.Println("PING");
+		if err := connection.WriteMessage(websocket.PingMessage, nil); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+}
+
+func reader(connection *websocket.Conn) {
+	var readerError error
+	defer func() {
+		fmt.Println(readerError)
+		connection.Close()
+		name := getUserName(connection)
+		removeUser(connection)
+		sendToAll(name+" has left the chatroom.", "", EventNotification)
+	}()
 	for {
 		var eventData eventData
-		messageType, message, err := connection.ReadMessage()
-		if err != nil {
-			return err
+		messageType, message, readerError := connection.ReadMessage()
+		if readerError != nil {
+			return
 		}
 		if messageType == websocket.TextMessage {
-			err := json.Unmarshal(message, &eventData)
-			if err != nil {
-				return err
+			readerError = json.Unmarshal(message, &eventData)
+			if readerError != nil {
+				return
 			}
-			var eventError error
 			switch eventData.Event {
 			case EventTyping:
-				eventError = handleTypingEvent(eventData.Body, connection)
+				readerError = handleTypingEvent(eventData.Body, connection)
 			case EventMessage:
-				eventError = handleMessageEvent(eventData.Body, connection)
+				readerError = handleMessageEvent(eventData.Body, connection)
 			case EventNameChange:
-				eventError = handleNameChangeEvent(eventData.Body, connection)
+				readerError = handleNameChangeEvent(eventData.Body, connection)
 			}
-			if eventError != nil {
-				return eventError
+			if readerError != nil {
+				return
 			}
 		}
 	}
