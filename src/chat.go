@@ -12,10 +12,11 @@ import (
 
 // EventData - A data structure that contains information about the current chat event.
 type eventData struct {
-	Event     string `json:"event"`
-	Body      string `json:"body"`
-	UserCount int    `json:"userCount"`
-	Name      string `json:"name"`
+	Event       string    `json:"event"`
+	Body        string    `json:"body"`
+	UserCount   int       `json:"userCount"`
+	Name        string    `json:"name"`
+	CreatedDate time.Time `json:"CreatedDate"`
 }
 
 var users []User
@@ -160,7 +161,7 @@ func writer(connection *websocket.Conn) {
 	}()
 	for {
 		time.Sleep(2 * time.Second)
-		fmt.Println("PING");
+		fmt.Println("PING")
 		if err := connection.WriteMessage(websocket.PingMessage, nil); err != nil {
 			fmt.Println(err)
 			return
