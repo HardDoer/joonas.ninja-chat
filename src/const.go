@@ -14,3 +14,6 @@ const EventNameChange = "nameChange"
 
 // EventNotification - A general notification event. Server status etc.
 const EventNotification = "notification"
+
+// EventChatHistory - An event that contains the previous chathistory.
+const EventChatHistory = "chatHistory"
