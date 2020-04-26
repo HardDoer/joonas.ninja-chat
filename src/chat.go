@@ -62,7 +62,11 @@ func getChatHistory() []byte {
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
 	historyResponse, err := client.Do(req)
-	if err != nil && historyResponse.Status != "200" {
+	if historyResponse.Status != "200" {
+		log.Printf("getChatHistory(): Error response " + historyResponse.Status)
+		return nil
+	}
+	if err != nil {
 		log.Printf("getChatHistory(): ")
 		log.Println(err)
 		return nil
@@ -181,8 +185,10 @@ func handleJoin(chatUser *User, connection *websocket.Conn) error {
 	var requestUser *User = chatUser
 	response := eventData{Event: EventJoin, Body: requestUser.Name, UserCount: len(users), CreatedDate: time.Now()}
 	chatHistory := getChatHistory()
-	if err := requestUser.Connection.WriteMessage(websocket.TextMessage, chatHistory); err != nil {
-		return err
+	if chatHistory != nil {
+		if err := requestUser.Connection.WriteMessage(websocket.TextMessage, chatHistory); err != nil {
+			return err
+		}
 	}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
