@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -18,7 +20,13 @@ type eventData struct {
 	Body        string    `json:"body"`
 	UserCount   int       `json:"userCount"`
 	Name        string    `json:"name"`
-	CreatedDate time.Time `json:"CreatedDate"`
+	CreatedDate time.Time `json:"createdDate"`
+}
+
+type chatHistory struct {
+	Body      []eventData `json:"history"`
+	UserCount int         `json:"userCount"`
+	Event     string      `json:"event"`
 }
 
 var users []User
@@ -29,11 +37,62 @@ var upgrader = websocket.Upgrader{
 }
 
 func updateChatHistory(jsonResponse []byte) {
-	historyResponse, err := http.Post(os.Getenv("CHAT_HISTORY_URL"), "application/json", bytes.NewBuffer(jsonResponse))
-	if err != nil && historyResponse.Status != "200" {
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", os.Getenv("CHAT_HISTORY_URL"), bytes.NewBuffer(jsonResponse))
+	if err != nil {
 		log.Printf("updateChatHistory(): ")
 		log.Println(err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", `Basic `+
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
+	historyResponse, err := client.Do(req)
+	if historyResponse.Status != "200" {
+		log.Printf("updateChatHistory(): Error response " + historyResponse.Status)
+	}
+	if err != nil {
+		log.Printf("updateChatHistory():")
+		log.Println(err)
+	}
+}
+
+func getChatHistory() []byte {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL"), nil)
+	req.Header.Add("Authorization", `Basic `+
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
+	historyResponse, err := client.Do(req)
+	if historyResponse.Status != "200" {
+		log.Printf("getChatHistory(): Error response " + historyResponse.Status)
+		return nil
+	}
+	if err != nil {
+		log.Printf("getChatHistory(): ")
+		log.Println(err)
+		return nil
+	}
+	defer historyResponse.Body.Close()
+	body, err := ioutil.ReadAll(historyResponse.Body)
+	if err != nil {
+		log.Printf("getChatHistory(): ")
+		log.Println(err)
+		return nil
+	}
+	var historyArray []eventData
+	err = json.Unmarshal(body, &historyArray)
+	if err != nil {
+		log.Printf("getChatHistory(): ")
+		log.Println(err)
+		return nil
+	}
+	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: len(users)}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("getChatHistory(): ")
+		log.Println(err)
+		return nil
+	}
+	return jsonResponse
 }
 
 func removeUser(connection *websocket.Conn) {
@@ -125,6 +184,12 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 func handleJoin(chatUser *User, connection *websocket.Conn) error {
 	var requestUser *User = chatUser
 	response := eventData{Event: EventJoin, Body: requestUser.Name, UserCount: len(users), CreatedDate: time.Now()}
+	chatHistory := getChatHistory()
+	if chatHistory != nil {
+		if err := requestUser.Connection.WriteMessage(websocket.TextMessage, chatHistory); err != nil {
+			return err
+		}
+	}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		return err
