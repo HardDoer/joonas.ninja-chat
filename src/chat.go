@@ -47,7 +47,7 @@ func updateChatHistory(jsonResponse []byte) {
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
 	historyResponse, err := client.Do(req)
-	if historyResponse.Status != "200" {
+	if historyResponse.Status != "200 OK" {
 		log.Printf("updateChatHistory(): Error response " + historyResponse.Status)
 	}
 	if err != nil {
@@ -62,7 +62,7 @@ func getChatHistory() []byte {
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
 	historyResponse, err := client.Do(req)
-	if historyResponse.Status != "200" {
+	if historyResponse.Status != "200 OK" {
 		log.Printf("getChatHistory(): Error response " + historyResponse.Status)
 		return nil
 	}
