@@ -10,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"errors"
 
 	"github.com/gorilla/websocket"
 )
