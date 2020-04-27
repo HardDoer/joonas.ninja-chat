@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"errors"
 
 	"github.com/gorilla/websocket"
 )
@@ -176,14 +177,19 @@ func newChatConnection(connection *websocket.Conn) {
 
 func handleMessageEvent(body string, connection *websocket.Conn) error {
 	var senderName = ""
-	for i := 0; i < len(users); i++ {
-		if connection == users[i].Connection {
-			senderName = users[i].Name
-			break
+	if len(body) < 512 {
+		for i := 0; i < len(users); i++ {
+			if connection == users[i].Connection {
+				senderName = users[i].Name
+				break
+			}
 		}
+		sendToAll(body, senderName, EventMessage)
+		return nil
+	} else {
+		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
+		return errors.New("Message is too long")
 	}
-	sendToAll(body, senderName, EventMessage)
-	return nil
 }
 
 func handleJoin(chatUser *User, connection *websocket.Conn) error {
