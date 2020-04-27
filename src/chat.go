@@ -47,13 +47,14 @@ func updateChatHistory(jsonResponse []byte) {
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
 	historyResponse, err := client.Do(req)
-	if historyResponse.Status != "200 OK" {
+	if historyResponse != nil && historyResponse.Status != "200 OK" {
 		log.Printf("updateChatHistory(): Error response " + historyResponse.Status)
 	}
 	if err != nil {
 		log.Printf("updateChatHistory():")
 		log.Println(err)
 	}
+	defer historyResponse.Body.Close()
 }
 
 func getChatHistory() []byte {
@@ -62,7 +63,7 @@ func getChatHistory() []byte {
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
 	historyResponse, err := client.Do(req)
-	if historyResponse.Status != "200 OK" {
+	if historyResponse != nil && historyResponse.Status != "200 OK" {
 		log.Printf("getChatHistory(): Error response " + historyResponse.Status)
 		return nil
 	}
@@ -114,7 +115,9 @@ func sendToAll(body string, name string, eventType string) {
 		log.Printf("sendToAll(): ")
 		log.Println(err)
 	}
-	updateChatHistory(jsonResponse)
+	if eventType == EventMessage {
+		updateChatHistory(jsonResponse)
+	}
 	for i := 0; i < len(users); i++ {
 		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 			log.Printf("sendToAll(): ")
@@ -132,7 +135,9 @@ func sendToOther(body string, connection *websocket.Conn, eventType string) {
 		log.Printf("sendToOther(): ")
 		log.Println(err)
 	}
-	updateChatHistory(jsonResponse)
+	if eventType == EventMessage {
+		updateChatHistory(jsonResponse)
+	}
 	for i := 0; i < len(users); i++ {
 		if users[i].Connection != connection {
 			if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
