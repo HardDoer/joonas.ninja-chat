@@ -185,11 +185,11 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 			}
 		}
 		sendToAll(body, senderName, EventMessage)
-		return nil
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
-		return errors.New("Message is too long")
+		log.Println("Message is too long")
 	}
+	return nil
 }
 
 func handleJoin(chatUser *User, connection *websocket.Conn) error {
