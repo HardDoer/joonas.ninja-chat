@@ -17,3 +17,6 @@ const EventNotification = "notification"
 
 // EventChatHistory - An event that contains the previous chathistory.
 const EventChatHistory = "chatHistory"
+
+// CommandList - Listing command for the chat.
+const CommandList = "list"

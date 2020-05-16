@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -126,6 +127,22 @@ func sendToAll(body string, name string, eventType string) {
 	}
 }
 
+// sendToOne - sends the body string data to a parameter defined client
+func sendToOne(body string, connection *websocket.Conn) {
+	log.Println("sendToOne(): " + body)
+	response := eventData{Event: EventNotification, Body: body, 
+		UserCount: len(users), Name: "", CreatedDate: time.Now()}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("sendToOne(): ")
+		log.Println(err)
+	}
+	if err := connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+		log.Printf("sendToOne(): ")
+		log.Println(err)
+	}
+}
+
 // sendToOther - sends the body string data to all connected clients except the parameter given client
 func sendToOther(body string, connection *websocket.Conn, eventType string) {
 	log.Println("sendToOther(): " + body)
@@ -174,16 +191,31 @@ func newChatConnection(connection *websocket.Conn) {
 	return
 }
 
+func handleCommand(body string, connection *websocket.Conn) {
+	var splitBody = strings.Split(body, "/")
+	splitBody = strings.Split(splitBody[1], " ")
+	command := splitBody[0]
+	if command == CommandList {
+		sendToOne("Perkele.", connection)
+	} else {
+		sendToOne("Command " + "'" + body + "' not recognized.", connection)
+	}
+}
+
 func handleMessageEvent(body string, connection *websocket.Conn) error {
 	var senderName = ""
 	if len(body) < 512 {
-		for i := 0; i < len(users); i++ {
-			if connection == users[i].Connection {
-				senderName = users[i].Name
-				break
+		if strings.Index(body, "/") != 0 {
+			for i := 0; i < len(users); i++ {
+				if connection == users[i].Connection {
+					senderName = users[i].Name
+					break
+				}
 			}
+			sendToAll(body, senderName, EventMessage)
+		} else {
+			handleCommand(body, connection)
 		}
-		sendToAll(body, senderName, EventMessage)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
 		log.Println("Message is too long")
