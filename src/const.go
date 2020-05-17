@@ -18,5 +18,11 @@ const EventNotification = "notification"
 // EventChatHistory - An event that contains the previous chathistory.
 const EventChatHistory = "chatHistory"
 
-// CommandList - Listing command for the chat.
-const CommandList = "list"
+// EventWho - An event for who
+const EventWho = "whoCommand"
+
+// CommandWho - List users command for the chat.
+const CommandWho = "who"
+
+// CommandChannel - Channel command that is used as a prefix for all the different channel operations like create and list.
+const CommandChannel = "channel"
