@@ -11,6 +11,11 @@ func HandleChannelCommand(commands []string, connection *websocket.Conn) {
 	
 }
 
+// HandleUserCommand - sdgsdfg
+func HandleUserCommand(commands []string, connection *websocket.Conn) {
+	
+}
+
 // HandleWhoCommand - dibadaba
 func HandleWhoCommand(connection *websocket.Conn) {
 	var whoIsHere []string

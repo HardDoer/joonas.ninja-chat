@@ -7,5 +7,6 @@ import (
 // User - A chat user.
 type User struct {
 	Name       string
+	Token      string
 	Connection *websocket.Conn
 }
