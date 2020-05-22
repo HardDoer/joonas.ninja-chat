@@ -3,14 +3,18 @@ EXPOSE 80
 
 ARG DEPLOY_ENV=production
 
-ADD src /opt/joonas.ninja-chat/
-ADD go.mod /opt/joonas.ninja-chat/go.mod
-ADD go.sum /opt/joonas.ninja-chat/go.sum
-ADD env/${DEPLOY_ENV}.env /opt/joonas.ninja-chat/app.env
+ADD src /opt/joonas.ninja-chat/src
+ADD go.mod /opt/joonas.ninja-chat/src/go.mod
+ADD go.sum /opt/joonas.ninja-chat/src/go.sum
+ADD env/${DEPLOY_ENV}.env /opt/joonas.ninja-chat/src/app.env
 
+WORKDIR /opt/joonas.ninja-chat/src
+RUN go build -o chat
+RUN copy ./chat /opt/joonas.ninja-chat
 WORKDIR /opt/joonas.ninja-chat
-RUN go build
+RUN rm -R -rf ./src
 
-CMD go run *.go
+
+CMD ["./chat "]
 
 
