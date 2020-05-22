@@ -188,7 +188,6 @@ func newChatConnection(connection *websocket.Conn) {
 		log.Println(err)
 	} else {
 		go reader(connection)
-		go writer(connection)
 	}
 	return
 }
@@ -277,20 +276,6 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 		log.Println("New name is too long")
 	}
 	return nil
-}
-
-func writer(connection *websocket.Conn) {
-	defer func() {
-		connection.Close()
-	}()
-	for {
-		time.Sleep(2 * time.Second)
-		log.Println("PING")
-		if err := connection.WriteMessage(websocket.PingMessage, nil); err != nil {
-			log.Println(err)
-			return
-		}
-	}
 }
 
 func reader(connection *websocket.Conn) {
