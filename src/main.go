@@ -25,12 +25,15 @@ func initRoutes() {
 
 func heartbeat() {
 	for {
-		time.Sleep(2 * time.Second)
-		log.Println("PING")
-		for i := 0; i < len(Users); i ++ {
-			if err := Users[i].Connection.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Println(err)
-				return
+		if len(Users) > 0 {
+			time.Sleep(2 * time.Second)
+			log.Println("PING")
+			for i := 0; i < len(Users); i ++ {
+				if err := Users[i].Connection.WriteMessage(websocket.PingMessage, nil); err != nil {
+					log.Println(err)
+					Users[i].Connection.Close()
+					return
+				}
 			}
 		}
 	}

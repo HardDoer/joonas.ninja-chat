@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"syncmap"
 	"github.com/gorilla/websocket"
 )
 
@@ -31,8 +31,8 @@ type chatHistory struct {
 	Event     string      `json:"event"`
 }
 
-// Users - All the connected clients.
-var Users []User
+// Users - A map containing all the connected users.
+var Users = new(syncmap.Map)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -89,7 +89,7 @@ func getChatHistory() []byte {
 		log.Println(err)
 		return nil
 	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: len(Users)}
+	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: len(Users.GetUsers())}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("getChatHistory(): ")
@@ -100,13 +100,7 @@ func getChatHistory() []byte {
 }
 
 func removeUser(connection *websocket.Conn) {
-	var newUsers []User
-	for i := 0; i < len(Users); i++ {
-		if connection != Users[i].Connection {
-			newUsers = append(newUsers, Users[i])
-		}
-	}
-	Users = newUsers
+	Users.Delete(connection)
 }
 
 // sendToAll - sends the body string data to all connected clients
@@ -179,9 +173,9 @@ func getUserName(connection *websocket.Conn) string {
 func newChatConnection(connection *websocket.Conn) {
 	log.Println("chatRequest(): Connection opened.")
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	User := User{Name: "Anon" + nano, Connection: connection}
-	Users = append(Users, User)
-	err := handleJoin(&User, connection)
+	newUser := User{Name: "Anon" + nano, Connection: connection}
+	Users.Store(connection, newUser)
+	err := handleJoin(&newUser, connection)
 	if err != nil {
 		connection.Close()
 		removeUser(connection)
