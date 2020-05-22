@@ -20,7 +20,7 @@ import (
 type EventData struct {
 	Event       string    `json:"event"`
 	Body        string    `json:"body"`
-	UserCount   int32    `json:"userCount"`
+	UserCount   int32     `json:"userCount"`
 	Name        string    `json:"name"`
 	CreatedDate time.Time `json:"createdDate"`
 	Auth        string    `json:"auth"`
@@ -28,7 +28,7 @@ type EventData struct {
 
 type chatHistory struct {
 	Body      []EventData `json:"history"`
-	UserCount int32         `json:"userCount"`
+	UserCount int32       `json:"userCount"`
 	Event     string      `json:"event"`
 }
 
@@ -156,7 +156,7 @@ func sendToOther(body string, connection *websocket.Conn, eventType string) {
 	if eventType == EventMessage {
 		updateChatHistory(jsonResponse)
 	}
-	Users.Range(func(key, value interface {}) bool {
+	Users.Range(func(key, value interface{}) bool {
 		connectionKey := key.(*websocket.Conn)
 		if connectionKey != connection {
 			if err := connectionKey.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
@@ -169,7 +169,7 @@ func sendToOther(body string, connection *websocket.Conn, eventType string) {
 }
 
 func getUserName(connection *websocket.Conn) string {
-	value, _:= Users.Load(connection)
+	value, _ := Users.Load(connection)
 	user := value.(User)
 	return user.Name
 }
@@ -200,8 +200,8 @@ func handleCommand(body string, connection *websocket.Conn) {
 	case CommandWho:
 		HandleWhoCommand(connection)
 		/*
-	case CommandChannel:
-		HandleChannelCommand(splitBody, connection)
+			case CommandChannel:
+				HandleChannelCommand(splitBody, connection)
 		*/
 	default:
 		SendToOne("Command "+"'"+body+"' not recognized.", connection, EventNotification)
