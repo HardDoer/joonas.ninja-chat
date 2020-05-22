@@ -199,8 +199,10 @@ func handleCommand(body string, connection *websocket.Conn) {
 	switch command {
 	case CommandWho:
 		HandleWhoCommand(connection)
+		/*
 	case CommandChannel:
 		HandleChannelCommand(splitBody, connection)
+		*/
 	default:
 		SendToOne("Command "+"'"+body+"' not recognized.", connection, EventNotification)
 	}
