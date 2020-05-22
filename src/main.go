@@ -4,9 +4,8 @@ import (
 	"net/http"
 	"os"
 
-	"log"
-
 	"github.com/joho/godotenv"
+	"log"
 )
 
 func initEnvFile() {

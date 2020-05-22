@@ -4,32 +4,37 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 // EventData - A data structure that contains information about the current chat event.
-type eventData struct {
+type EventData struct {
 	Event       string    `json:"event"`
 	Body        string    `json:"body"`
-	UserCount   int       `json:"userCount"`
+	UserCount   int32     `json:"userCount"`
 	Name        string    `json:"name"`
 	CreatedDate time.Time `json:"createdDate"`
+	Auth        string    `json:"auth"`
 }
 
 type chatHistory struct {
-	Body      []eventData `json:"history"`
-	UserCount int         `json:"userCount"`
+	Body      []EventData `json:"history"`
+	UserCount int32       `json:"userCount"`
 	Event     string      `json:"event"`
 }
 
-var users []User
+// Users - A map containing all the connected users.
+var Users sync.Map
+var userCount int32
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -79,14 +84,14 @@ func getChatHistory() []byte {
 		log.Println(err)
 		return nil
 	}
-	var historyArray []eventData
+	var historyArray []EventData
 	err = json.Unmarshal(body, &historyArray)
 	if err != nil {
 		log.Printf("getChatHistory(): ")
 		log.Println(err)
 		return nil
 	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: len(users)}
+	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: userCount}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("getChatHistory(): ")
@@ -97,19 +102,14 @@ func getChatHistory() []byte {
 }
 
 func removeUser(connection *websocket.Conn) {
-	var newUsers []User
-	for i := 0; i < len(users); i++ {
-		if connection != users[i].Connection {
-			newUsers = append(newUsers, users[i])
-		}
-	}
-	users = newUsers
+	Users.Delete(connection)
+	atomic.AddInt32(&userCount, -1)
 }
 
 // sendToAll - sends the body string data to all connected clients
 func sendToAll(body string, name string, eventType string) {
 	log.Println("sendToAll(): " + body)
-	response := eventData{Event: eventType, Body: body, UserCount: len(users), Name: name, CreatedDate: time.Now()}
+	response := EventData{Event: eventType, Body: body, UserCount: userCount, Name: name, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("sendToAll(): ")
@@ -118,18 +118,36 @@ func sendToAll(body string, name string, eventType string) {
 	if eventType == EventMessage {
 		updateChatHistory(jsonResponse)
 	}
-	for i := 0; i < len(users); i++ {
-		if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+	Users.Range(func(key, value interface{}) bool {
+		var connectionKey = key.(*websocket.Conn)
+		if err := connectionKey.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 			log.Printf("sendToAll(): ")
 			log.Println(err)
 		}
+		return true
+	})
+}
+
+// SendToOne - sends the body string data to a parameter defined client
+func SendToOne(body string, connection *websocket.Conn, eventType string) {
+	log.Println("sendToOne(): " + body)
+	response := EventData{Event: eventType, Body: body,
+		UserCount: userCount, Name: "", CreatedDate: time.Now()}
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("sendToOne(): ")
+		log.Println(err)
+	}
+	if err := connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+		log.Printf("sendToOne(): ")
+		log.Println(err)
 	}
 }
 
 // sendToOther - sends the body string data to all connected clients except the parameter given client
 func sendToOther(body string, connection *websocket.Conn, eventType string) {
 	log.Println("sendToOther(): " + body)
-	response := eventData{Event: eventType, Body: body, UserCount: len(users), CreatedDate: time.Now()}
+	response := EventData{Event: eventType, Body: body, UserCount: userCount, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("sendToOther(): ")
@@ -138,52 +156,69 @@ func sendToOther(body string, connection *websocket.Conn, eventType string) {
 	if eventType == EventMessage {
 		updateChatHistory(jsonResponse)
 	}
-	for i := 0; i < len(users); i++ {
-		if users[i].Connection != connection {
-			if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+	Users.Range(func(key, value interface{}) bool {
+		connectionKey := key.(*websocket.Conn)
+		if connectionKey != connection {
+			if err := connectionKey.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
 				log.Printf("sendToOther(): ")
 				log.Println(err)
 			}
 		}
-	}
+		return true
+	})
 }
 
 func getUserName(connection *websocket.Conn) string {
-	for i := 0; i < len(users); i++ {
-		if users[i].Connection == connection {
-			return users[i].Name
-		}
-	}
-	return ""
+	value, _ := Users.Load(connection)
+	user := value.(User)
+	return user.Name
 }
 
 func newChatConnection(connection *websocket.Conn) {
 	log.Println("chatRequest(): Connection opened.")
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	User := User{Name: "Anon" + nano, Connection: connection}
-	users = append(users, User)
-	err := handleJoin(&User, connection)
+	newUser := User{Name: "Anon" + nano, Connection: connection}
+	Users.Store(connection, newUser)
+	atomic.AddInt32(&userCount, 1)
+	err := handleJoin(&newUser, connection)
 	if err != nil {
 		connection.Close()
 		removeUser(connection)
 		log.Println(err)
 	} else {
 		go reader(connection)
-		go writer(connection)
+		go heartbeat(connection)
 	}
 	return
+}
+
+func handleCommand(body string, connection *websocket.Conn) {
+	var splitBody = strings.Split(body, "/")
+	splitBody = strings.Split(splitBody[1], " ")
+	command := splitBody[0]
+	switch command {
+	case CommandWho:
+		HandleWhoCommand(connection)
+		/*
+			case CommandChannel:
+				HandleChannelCommand(splitBody, connection)
+		*/
+	default:
+		SendToOne("Command "+"'"+body+"' not recognized.", connection, EventNotification)
+	}
 }
 
 func handleMessageEvent(body string, connection *websocket.Conn) error {
 	var senderName = ""
 	if len(body) < 512 {
-		for i := 0; i < len(users); i++ {
-			if connection == users[i].Connection {
-				senderName = users[i].Name
-				break
-			}
+		if strings.Index(body, "/") != 0 {
+			value, _ := Users.Load(connection)
+			user := value.(User)
+			senderName = user.Name
+			sendToAll(body, senderName, EventMessage)
+		} else {
+			handleCommand(body, connection)
 		}
-		sendToAll(body, senderName, EventMessage)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
 		log.Println("Message is too long")
@@ -193,7 +228,7 @@ func handleMessageEvent(body string, connection *websocket.Conn) error {
 
 func handleJoin(chatUser *User, connection *websocket.Conn) error {
 	var requestUser *User = chatUser
-	response := eventData{Event: EventJoin, Body: requestUser.Name, UserCount: len(users), CreatedDate: time.Now()}
+	response := EventData{Event: EventJoin, Body: requestUser.Name, UserCount: userCount, CreatedDate: time.Now()}
 	chatHistory := getChatHistory()
 	if chatHistory != nil {
 		if err := requestUser.Connection.WriteMessage(websocket.TextMessage, chatHistory); err != nil {
@@ -218,21 +253,19 @@ func handleTypingEvent(body string, connection *websocket.Conn) error {
 func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	if len(body) < 64 {
 		var originalName string
-		for i := 0; i < len(users); i++ {
-			log.Println("handleNameChangeEvent(): User " + users[i].Name + " is changing name.")
-			if connection == users[i].Connection {
-				originalName = users[i].Name
-				users[i].Name = body
-				response := eventData{Event: EventNameChange, Body: users[i].Name, UserCount: len(users), CreatedDate: time.Now()}
-				jsonResponse, err := json.Marshal(response)
-				if err != nil {
-					return err
-				}
-				if err := users[i].Connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
-					return err
-				}
-				break
-			}
+		key, _ := Users.Load(connection)
+		user := key.(User)
+		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
+		originalName = user.Name
+		user.Name = body
+		Users.Store(connection, user)
+		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: userCount, CreatedDate: time.Now()}
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			return err
+		}
+		if err := connection.WriteMessage(websocket.TextMessage, jsonResponse); err != nil {
+			return err
 		}
 		sendToOther(originalName+" is now called "+body, connection, EventNotification)
 	} else {
@@ -242,7 +275,43 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	return nil
 }
 
-func writer(connection *websocket.Conn) {
+func reader(connection *websocket.Conn) {
+	var readerError error
+	defer func() {
+		log.Println(readerError)
+		connection.Close()
+		key, _ := Users.Load(connection)
+		user := key.(User)
+		removeUser(connection)
+		sendToAll(user.Name+" has left the chatroom.", "", EventNotification)
+	}()
+	for {
+		var EventData EventData
+		messageType, message, readerError := connection.ReadMessage()
+		if readerError != nil {
+			return
+		}
+		if messageType == websocket.TextMessage {
+			readerError = json.Unmarshal(message, &EventData)
+			if readerError != nil {
+				return
+			}
+			switch EventData.Event {
+			case EventTyping:
+				readerError = handleTypingEvent(EventData.Body, connection)
+			case EventMessage:
+				readerError = handleMessageEvent(EventData.Body, connection)
+			case EventNameChange:
+				readerError = handleNameChangeEvent(EventData.Body, connection)
+			}
+			if readerError != nil {
+				return
+			}
+		}
+	}
+}
+
+func heartbeat(connection *websocket.Conn) {
 	defer func() {
 		connection.Close()
 	}()
@@ -252,41 +321,6 @@ func writer(connection *websocket.Conn) {
 		if err := connection.WriteMessage(websocket.PingMessage, nil); err != nil {
 			log.Println(err)
 			return
-		}
-	}
-}
-
-func reader(connection *websocket.Conn) {
-	var readerError error
-	defer func() {
-		log.Println(readerError)
-		connection.Close()
-		name := getUserName(connection)
-		removeUser(connection)
-		sendToAll(name+" has left the chatroom.", "", EventNotification)
-	}()
-	for {
-		var eventData eventData
-		messageType, message, readerError := connection.ReadMessage()
-		if readerError != nil {
-			return
-		}
-		if messageType == websocket.TextMessage {
-			readerError = json.Unmarshal(message, &eventData)
-			if readerError != nil {
-				return
-			}
-			switch eventData.Event {
-			case EventTyping:
-				readerError = handleTypingEvent(eventData.Body, connection)
-			case EventMessage:
-				readerError = handleMessageEvent(eventData.Body, connection)
-			case EventNameChange:
-				readerError = handleNameChangeEvent(eventData.Body, connection)
-			}
-			if readerError != nil {
-				return
-			}
 		}
 	}
 }
