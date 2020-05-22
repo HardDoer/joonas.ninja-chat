@@ -4,10 +4,8 @@ import (
 	"net/http"
 	"os"
 
-	"log"
-	"time"
 	"github.com/joho/godotenv"
-	"github.com/gorilla/websocket"
+	"log"
 )
 
 func initEnvFile() {
@@ -23,27 +21,10 @@ func initRoutes() {
 	log.Println("initRoutes(): Routes initialized.")
 }
 
-func heartbeat() {
-	for {
-		if len(Users) > 0 {
-			time.Sleep(2 * time.Second)
-			log.Println("PING")
-			for i := 0; i < len(Users); i ++ {
-				if err := Users[i].Connection.WriteMessage(websocket.PingMessage, nil); err != nil {
-					log.Println(err)
-					Users[i].Connection.Close()
-					return
-				}
-			}
-		}
-	}
-}
-
 func main() {
 	initEnvFile()
 	initRoutes()
 	log.Println("main(): Starting server...")
-	go heartbeat()
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
 		log.Panic(err)
 	}
