@@ -45,5 +45,5 @@ func TestMessageJoinAndNormalMessage(t *testing.T) {
 	_, message, err = ws.ReadMessage()
 	readerError = json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "Testing message")
+	assert.Equal(t, true, responseData.Body == "Testing message" && responseData.UserCount == 1, responseData.Event == EventMessage)
 }
