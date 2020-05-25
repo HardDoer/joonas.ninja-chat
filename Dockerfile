@@ -1,4 +1,4 @@
-FROM golang:1.13 AS build
+FROM golang:alpine AS build
 
 ARG DEPLOY_ENV=production
 
