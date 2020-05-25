@@ -42,7 +42,10 @@ func TestJoin(t *testing.T) {
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, strings.HasPrefix(responseData.Body, "Anon") && responseData.Body != "Anon" && responseData.UserCount == 1, responseData.Event == EventJoin,
+	assert.Equal(t, true, strings.HasPrefix(responseData.Body, "Anon") &&
+		responseData.Body != "Anon" &&
+		responseData.UserCount == 1 &&
+		responseData.Event == EventJoin,
 		"Name should be of the form AnonSomething and response structure should be valid.")
 }
 
@@ -65,7 +68,9 @@ func TestSendMessage(t *testing.T) {
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "Testing message" && responseData.UserCount == 1, responseData.Event == EventMessage,
+	assert.Equal(t, true, responseData.Body == "Testing message" &&
+		responseData.UserCount == 1 &&
+		responseData.Event == EventMessage,
 		"Response to a normal chatmessage should be valid.")
 }
 
@@ -86,6 +91,8 @@ func TestChangeName(t *testing.T) {
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "TestDude" && responseData.UserCount == 1, responseData.Event == EventNameChange,
+	assert.Equal(t, true, responseData.Body == "TestDude" &&
+		responseData.UserCount == 1 &&
+		responseData.Event == EventNameChange,
 		"nameChange-event should return the user set name in the response and the response structure should be as expected.")
 }
