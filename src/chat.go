@@ -251,13 +251,13 @@ func handleTypingEvent(body string, connection *websocket.Conn) error {
 
 func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 	if len(body) <= 64 && len(body) >= 1 {
+		var originalName string
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
 			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
 			log.Println("No empty names!")
 			return nil
 		}
-		var originalName string
 		key, _ := Users.Load(connection)
 		user := key.(User)
 		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
