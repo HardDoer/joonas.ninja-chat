@@ -189,7 +189,6 @@ func newChatConnection(connection *websocket.Conn) {
 		go reader(connection)
 		go heartbeat(connection)
 	}
-	return
 }
 
 func handleCommand(body string, connection *websocket.Conn) {
