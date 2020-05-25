@@ -326,7 +326,15 @@ func heartbeat(connection *websocket.Conn) {
 
 // ChatRequest - A chat request.
 func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		allowedOrigin, found := os.LookupEnv("ALLOWED_ORIGIN")
+		if found {
+			return r.Header.Get("Origin") == "http://"+allowedOrigin ||
+				r.Header.Get("Origin") == "https://"+allowedOrigin
+		} else {
+			return true
+		}
+	}
 	wsConnection, err := upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
