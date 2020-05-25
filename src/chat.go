@@ -331,6 +331,7 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	wsConnection, err := upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
+	} else {
+		newChatConnection(wsConnection)
 	}
-	newChatConnection(wsConnection)
 }
