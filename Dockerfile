@@ -1,5 +1,4 @@
-FROM golang:1.13
-EXPOSE 80
+FROM golang:1.13 AS build
 
 ARG DEPLOY_ENV=production
 
@@ -10,10 +9,12 @@ ADD env/${DEPLOY_ENV}.env /opt/joonas.ninja-chat/app.env
 
 WORKDIR /opt/joonas.ninja-chat/src
 RUN go build -o chat
-RUN mv ./chat /opt/joonas.ninja-chat
-WORKDIR /opt/joonas.ninja-chat
-RUN rm -R -rf ./src
 
+FROM alpine:latest
+EXPOSE 80
+WORKDIR /opt/joonas.ninja-chat
+COPY --from=build /opt/joonas.ninja-chat/src/chat .
+COPY --from=build /opt/joonas.ninja-chat/app.env .
 
 CMD ["./chat"]
 
