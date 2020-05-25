@@ -64,7 +64,7 @@ func TestSendMessage(t *testing.T) {
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "Testing message" && responseData.UserCount == 1, responseData.Event == EventMessage)
+	assert.Equal(t, true, responseData.Body == "Testing message" && responseData.UserCount == 1, responseData.Event == EventMessage, "Response to a normal chatmessage should be structured as expected.")
 }
 
 func TestChangeName(t *testing.T) {
@@ -84,5 +84,5 @@ func TestChangeName(t *testing.T) {
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "TestDude" && responseData.UserCount == 1, responseData.Event == EventNameChange)
+	assert.Equal(t, true, responseData.Body == "TestDude" && responseData.UserCount == 1, responseData.Event == EventNameChange, "nameChange-event should return the user set name in the response and the response structure should be proper.")
 }
