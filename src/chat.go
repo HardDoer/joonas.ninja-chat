@@ -250,7 +250,13 @@ func handleTypingEvent(body string, connection *websocket.Conn) error {
 }
 
 func handleNameChangeEvent(body string, connection *websocket.Conn) error {
-	if len(body) < 64 {
+	if len(body) <= 64 && len(body) >= 1 {
+		body = strings.ReplaceAll(body, " ", "")
+		if body == "" {
+			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
+			log.Println("No empty names!")
+			return nil
+		}
 		var originalName string
 		key, _ := Users.Load(connection)
 		user := key.(User)
@@ -269,7 +275,7 @@ func handleNameChangeEvent(body string, connection *websocket.Conn) error {
 		sendToOther(originalName+" is now called "+body, connection, EventNotification)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
-		log.Println("New name is too long")
+		log.Println("New name is too long or too short")
 	}
 	return nil
 }
