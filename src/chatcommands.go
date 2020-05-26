@@ -17,10 +17,10 @@ func HandleUserCommand(commands []string, connection *websocket.Conn) {
 }
 
 // HandleWhoCommand - dibadaba
-func HandleWhoCommand(connection *websocket.Conn) {
+func HandleWhoCommand(user *User) {
 	var whoIsHere []string
 	Users.Range(func(key, value interface{}) bool {
-		v := value.(User)
+		v := value.(*User)
 		whoIsHere = append(whoIsHere, v.Name)
 		return true
 	})
@@ -30,5 +30,5 @@ func HandleWhoCommand(connection *websocket.Conn) {
 		log.Println(err)
 		return
 	}
-	SendToOne(string(jsonResponse), connection, EventWho)
+	SendToOne(string(jsonResponse), user, EventWho)
 }
