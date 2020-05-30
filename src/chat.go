@@ -336,13 +336,13 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 		if found {
 			return r.Header.Get("Origin") == "http://"+allowedOrigin ||
 				r.Header.Get("Origin") == "https://"+allowedOrigin
-		} else {
-			return true
 		}
+		return true
 	}
 	wsConnection, err := upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
+		wsConnection.Close()
 	} else {
 		newChatConnection(wsConnection)
 	}
