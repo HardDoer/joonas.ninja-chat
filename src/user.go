@@ -13,9 +13,9 @@ type User struct {
 	mutex      sync.Mutex
 }
 
-func (u *User) write(messageType int, data [] byte) error {
-    u.mutex.Lock()
-    defer u.mutex.Unlock()
+func (u *User) write(messageType int, data []byte) error {
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
 	err := u.Connection.WriteMessage(messageType, data)
 	return err
 }
