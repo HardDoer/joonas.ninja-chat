@@ -184,10 +184,13 @@ func newChatConnection(connection *websocket.Conn) {
 	if err != nil {
 		connection.Close()
 		removeUser(&newUser)
+		log.Printf("newChatConnection(): ")
 		log.Println(err)
 	} else {
 		go reader(&newUser)
-		go heartbeat(&newUser)
+		if userCount == 1 {
+			go heartbeat()
+		}
 	}
 }
 
@@ -315,17 +318,20 @@ func reader(user *User) {
 	}
 }
 
-func heartbeat(user *User) {
-	defer func() {
-		user.Connection.Close()
-	}()
+func heartbeat() {
 	for {
-		time.Sleep(3 * time.Second)
-		log.Println("PING")
-		if err := user.write(websocket.PingMessage, nil); err != nil {
-			log.Println(err)
+		if userCount == 0 {
 			return
 		}
+		time.Sleep(2 * time.Second)
+		log.Println("PING")
+		Users.Range(func(key, value interface{}) bool {
+			userValue := value.(*User)
+			if err := userValue.write(websocket.PingMessage, nil); err != nil {
+				log.Println(err)
+			}
+			return true
+		})
 	}
 }
 
