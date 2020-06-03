@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"github.com/gorilla/websocket"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -41,73 +38,29 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func updateChatHistory(jsonResponse []byte) {
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("CHAT_HISTORY_URL"), bytes.NewBuffer(jsonResponse))
-	if err != nil {
-		log.Printf("updateChatHistory(): ")
-		log.Println(err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
-	historyResponse, err := client.Do(req)
-	if historyResponse != nil && historyResponse.Status != "200 OK" {
-		log.Printf("updateChatHistory(): Error response " + historyResponse.Status)
-	}
-	if err != nil {
-		log.Printf("updateChatHistory():")
-		log.Println(err)
-	}
-	defer historyResponse.Body.Close()
-}
-
-func getChatHistory() []byte {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL"), nil)
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
-	historyResponse, err := client.Do(req)
-	if historyResponse != nil && historyResponse.Status != "200 OK" {
-		log.Printf("getChatHistory(): Error response " + historyResponse.Status)
-		return nil
-	}
-	if err != nil {
-		log.Printf("getChatHistory(): ")
-		log.Println(err)
-		return nil
-	}
-	defer historyResponse.Body.Close()
-	body, err := ioutil.ReadAll(historyResponse.Body)
-	if err != nil {
-		log.Printf("getChatHistory(): ")
-		log.Println(err)
-		return nil
-	}
-	var historyArray []EventData
-	err = json.Unmarshal(body, &historyArray)
-	if err != nil {
-		log.Printf("getChatHistory(): ")
-		log.Println(err)
-		return nil
-	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: userCount}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Printf("getChatHistory(): ")
-		log.Println(err)
-		return nil
-	}
-	return jsonResponse
-}
-
 func removeUser(user *User) {
 	Users.Delete(user)
 	atomic.AddInt32(&userCount, -1)
 }
 
-// sendToAll - sends the body string data to all connected clients
-func sendToAll(body string, name string, eventType string) {
+func handleCommand(body string, user *User) {
+	var splitBody = strings.Split(body, "/")
+	splitBody = strings.Split(splitBody[1], " ")
+	command := splitBody[0]
+	switch command {
+	case CommandWho:
+		HandleWhoCommand(user)
+		/*
+			case CommandChannel:
+				HandleChannelCommand(splitBody, connection)
+		*/
+	default:
+		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
+	}
+}
+
+// SendToAll - sends the body string data to all connected clients
+func SendToAll(body string, name string, eventType string) {
 	log.Println("sendToAll(): " + body)
 	response := EventData{Event: eventType, Body: body, UserCount: userCount, Name: name, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
@@ -116,7 +69,7 @@ func sendToAll(body string, name string, eventType string) {
 		log.Println(err)
 	}
 	if eventType == EventMessage {
-		updateChatHistory(jsonResponse)
+		UpdateChatHistory(jsonResponse)
 	}
 	Users.Range(func(key, value interface{}) bool {
 		var userValue = value.(*User)
@@ -144,8 +97,8 @@ func SendToOne(body string, user *User, eventType string) {
 	}
 }
 
-// sendToOther - sends the body string data to all connected clients except the parameter given client
-func sendToOther(body string, user *User, eventType string) {
+// SendToOther - sends the body string data to all connected clients except the parameter given client
+func SendToOther(body string, user *User, eventType string) {
 	log.Println("sendToOther(): " + body)
 	response := EventData{Event: eventType, Body: body, UserCount: userCount, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
@@ -154,7 +107,7 @@ func sendToOther(body string, user *User, eventType string) {
 		log.Println(err)
 	}
 	if eventType == EventMessage {
-		updateChatHistory(jsonResponse)
+		UpdateChatHistory(jsonResponse)
 	}
 	Users.Range(func(key, value interface{}) bool {
 		userValue := value.(*User)
@@ -191,94 +144,6 @@ func newChatConnection(connection *websocket.Conn) {
 	}
 }
 
-func handleCommand(body string, user *User) {
-	var splitBody = strings.Split(body, "/")
-	splitBody = strings.Split(splitBody[1], " ")
-	command := splitBody[0]
-	switch command {
-	case CommandWho:
-		HandleWhoCommand(user)
-		/*
-			case CommandChannel:
-				HandleChannelCommand(splitBody, connection)
-		*/
-	default:
-		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
-	}
-}
-
-func handleMessageEvent(body string, user *User) error {
-	var senderName = ""
-	if len(body) < 512 {
-		if strings.Index(body, "/") != 0 {
-			value, _ := Users.Load(user)
-			user := value.(*User)
-			senderName = user.Name
-			sendToAll(body, senderName, EventMessage)
-		} else {
-			handleCommand(body, user)
-		}
-	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
-		log.Println("Message is too long")
-	}
-	return nil
-}
-
-func handleJoin(chatUser *User) error {
-	response := EventData{Event: EventJoin, Body: chatUser.Name, UserCount: userCount, CreatedDate: time.Now()}
-	chatHistory := getChatHistory()
-	if chatHistory != nil {
-		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
-			return err
-		}
-	}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-	if err := chatUser.write(websocket.TextMessage, jsonResponse); err != nil {
-		return err
-	}
-	sendToOther(chatUser.Name+" has joined the chat.", chatUser, EventNotification)
-	return nil
-}
-
-func handleTypingEvent(body string, user *User) error {
-	return nil
-}
-
-func handleNameChangeEvent(body string, user *User) error {
-	if len(body) <= 64 && len(body) >= 1 {
-		var originalName string
-		body = strings.ReplaceAll(body, " ", "")
-		if body == "" {
-			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
-			log.Println("No empty names!")
-			return nil
-		}
-		key, _ := Users.Load(user)
-		user := key.(*User)
-		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
-		originalName = user.Name
-		user.Name = body
-		Users.Store(user, user)
-		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: userCount, CreatedDate: time.Now()}
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			return err
-		}
-		if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-			return err
-		}
-		sendToOther(originalName+" is now called "+body, user, EventNotification)
-	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
-		log.Println("New name is too long or too short")
-	}
-	return nil
-}
-
 func reader(user *User) {
 	var readerError error
 	defer func() {
@@ -287,7 +152,7 @@ func reader(user *User) {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		removeUser(user)
-		sendToAll(user.Name+" has left the chatroom.", "", EventNotification)
+		SendToAll(user.Name+" has left the chatroom.", "", EventNotification)
 	}()
 	for {
 		var EventData EventData
@@ -302,11 +167,11 @@ func reader(user *User) {
 			}
 			switch EventData.Event {
 			case EventTyping:
-				readerError = handleTypingEvent(EventData.Body, user)
+				readerError = HandleTypingEvent(EventData.Body, user)
 			case EventMessage:
-				readerError = handleMessageEvent(EventData.Body, user)
+				readerError = HandleMessageEvent(EventData.Body, user)
 			case EventNameChange:
-				readerError = handleNameChangeEvent(EventData.Body, user)
+				readerError = HandleNameChangeEvent(EventData.Body, user)
 			}
 			if readerError != nil {
 				return
