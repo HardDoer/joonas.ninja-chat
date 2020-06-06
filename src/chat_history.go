@@ -10,6 +10,12 @@ import (
 	"os"
 )
 
+type chatHistory struct {
+	Body      []EventData `json:"history"`
+	UserCount int32       `json:"userCount"`
+	Event     string      `json:"event"`
+}
+
 // UpdateChatHistory - Adds the parameter defined chat history entry to chat history
 func UpdateChatHistory(jsonResponse []byte) {
 	client := &http.Client{}
@@ -57,7 +63,7 @@ func GetChatHistory() []byte {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: userCount}
+	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: UserCount}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("getChatHistory():", err)

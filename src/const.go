@@ -9,6 +9,9 @@ const EventMessage = "message"
 // EventJoin - An event which is sent when the user joins the chat.
 const EventJoin = "join"
 
+// EventLogin - An event which is sent when user wishes to log in.
+const EventLogin = "login"
+
 // EventNameChange - An event which contains information that the user wants to change their name and also the new name.
 const EventNameChange = "nameChange"
 

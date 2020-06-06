@@ -1,14 +1,100 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
-// HandleMessageEvent - 
+type chatLogin struct {
+	Scope     string `json:"scope"`
+	GrantType string `json:"grant_type"`
+}
+
+func handleCommand(body string, user *User) {
+	var splitBody = strings.Split(body, "/")
+	splitBody = strings.Split(splitBody[1], " ")
+	command := splitBody[0]
+	switch command {
+	case CommandWho:
+		HandleWhoCommand(user)
+		/*
+			case CommandChannel:
+				HandleChannelCommand(splitBody, connection)
+		*/
+	default:
+		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
+	}
+}
+
+// UpdateChatHistory - Adds the parameter defined chat history entry to chat history
+func loginRequest(username string, password string) error {
+	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials"}
+	jsonResponse, err := json.Marshal(chatLoginRequest)
+	if err != nil {
+		log.Print("loginRequest():", err)
+		return err
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", os.Getenv("CHAT_LOGIN_URL"), bytes.NewBuffer(jsonResponse))
+	if err != nil {
+		log.Print("loginRequest():", err)
+		return err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", `Basic `+
+		base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
+	historyResponse, err := client.Do(req)
+	if historyResponse != nil && historyResponse.Status != "200 OK" {
+		log.Print("loginRequest():", "Error response "+historyResponse.Status)
+		return err
+	}
+	if err != nil {
+		log.Print("loginRequest():", err)
+		return err
+	}
+	defer historyResponse.Body.Close()
+	return nil
+}
+
+// HandleLoginEvent -
+func HandleLoginEvent(body string, user *User) error {
+	var username string
+	var password string
+	var parsedBody []string
+
+	if len(body) < 512 {
+		parsedBody = strings.Split(body, ":")
+		username = parsedBody[0]
+		password = parsedBody[1]
+		if len(username) > 1 && len(password) > 1 {
+			loginError := loginRequest(username, password)
+			if loginError != nil {
+				response := EventData{Event: EventNotification, Body: "Login error.", UserCount: UserCount, CreatedDate: time.Now()}
+				jsonResponse, err := json.Marshal(response)
+				if err != nil {
+					log.Print("HandleLoginEvent():", err)
+				} else {
+					if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	} else {
+		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
+		log.Println("Message is too long")
+	}
+	return nil
+}
+
+// HandleMessageEvent -
 func HandleMessageEvent(body string, user *User) error {
 	var senderName = ""
 	if len(body) < 512 {
@@ -27,9 +113,9 @@ func HandleMessageEvent(body string, user *User) error {
 	return nil
 }
 
-// HandleJoin - 
+// HandleJoin -
 func HandleJoin(chatUser *User) error {
-	response := EventData{Event: EventJoin, Body: chatUser.Name, UserCount: userCount, CreatedDate: time.Now()}
+	response := EventData{Event: EventJoin, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
 	chatHistory := GetChatHistory()
 	if chatHistory != nil {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
@@ -47,12 +133,12 @@ func HandleJoin(chatUser *User) error {
 	return nil
 }
 
-// HandleTypingEvent - 
+// HandleTypingEvent -
 func HandleTypingEvent(body string, user *User) error {
 	return nil
 }
 
-// HandleNameChangeEvent - 
+// HandleNameChangeEvent -
 func HandleNameChangeEvent(body string, user *User) error {
 	if len(body) <= 64 && len(body) >= 1 {
 		var originalName string
@@ -68,7 +154,7 @@ func HandleNameChangeEvent(body string, user *User) error {
 		originalName = user.Name
 		user.Name = body
 		Users.Store(user, user)
-		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: userCount, CreatedDate: time.Now()}
+		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			return err
