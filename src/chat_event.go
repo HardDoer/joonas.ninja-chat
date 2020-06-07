@@ -88,6 +88,8 @@ func HandleLoginEvent(body string, user *User) error {
 						return err
 					}
 				}
+			} else {
+				log.Print("HandleLoginEvent():", "Login successful")
 			}
 		}
 	} else {
