@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +19,10 @@ type chatLogin struct {
 	GrantType string `json:"grant_type"`
 	Username  string `json:"username"`
 	Password  string `json:"password"`
+}
+
+type gatewayResponse struct {
+	Token string `json:"token"`
 }
 
 func handleCommand(body string, user *User) {
@@ -36,19 +41,19 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-// UpdateChatHistory - Adds the parameter defined chat history entry to chat history
-func loginRequest(username string, password string) error {
+func loginRequest(username string, password string) (res gatewayResponse, err error) {
+	var gatewayRes gatewayResponse
 	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Username: username, Password: password}
 	jsonResponse, err := json.Marshal(chatLoginRequest)
 	if err != nil {
 		log.Print("loginRequest():", err)
-		return err
+		return gatewayRes, err
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", os.Getenv("CHAT_LOGIN_URL"), bytes.NewBuffer(jsonResponse))
 	if err != nil {
 		log.Print("loginRequest():", err)
-		return err
+		return gatewayRes, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
@@ -56,14 +61,24 @@ func loginRequest(username string, password string) error {
 	loginResponse, err := client.Do(req)
 	if err != nil {
 		log.Print("loginRequest():", err)
-		return err
+		return gatewayRes, err
 	}
 	if loginResponse != nil && loginResponse.Status != "200 OK" {
 		log.Print("loginRequest():", "Error response "+loginResponse.Status)
-		return errors.New("Error response " + loginResponse.Status)
+		return gatewayRes, errors.New("Error response " + loginResponse.Status)
 	}
 	defer loginResponse.Body.Close()
-	return nil
+	body, err := ioutil.ReadAll(loginResponse.Body)
+	if err != nil {
+		log.Print("getChatHistory():", err)
+		return gatewayRes, err
+	}
+	err = json.Unmarshal(body, &gatewayRes)
+	if err != nil {
+		log.Print("getChatHistory():", err)
+		return gatewayRes, err
+	}
+	return gatewayRes, nil
 }
 
 // HandleLoginEvent -
@@ -71,26 +86,32 @@ func HandleLoginEvent(body string, user *User) error {
 	var username string
 	var password string
 	var parsedBody []string
+	var marshalAndWrite = func(data EventData) error {
+		jsonResponse, err := json.Marshal(data)
+		if err != nil {
+			log.Print("HandleLoginEvent():", err)
+		}
+		if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
+			log.Print("HandleLoginEvent():", err)
+			return err
+		}
+		return nil
+	}
 
 	if len(body) < 512 {
 		parsedBody = strings.Split(body, ":")
 		username = parsedBody[0]
 		password = parsedBody[1]
 		if len(username) > 1 && len(password) > 1 {
-			loginError := loginRequest(username, password)
+			loginRes, loginError := loginRequest(username, password)
 			if loginError != nil {
 				response := EventData{Event: EventNotification, Body: "Login error.", UserCount: UserCount, CreatedDate: time.Now()}
-				jsonResponse, err := json.Marshal(response)
-				if err != nil {
-					log.Print("HandleLoginEvent():", err)
-				} else {
-					if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-						return err
-					}
-				}
-			} else {
-				log.Print("HandleLoginEvent():", "Login successful")
+				return marshalAndWrite(response)
 			}
+			response := EventData{Event: EventLogin, Body: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
+			log.Print("HandleLoginEvent():", "Login successful")
+			return marshalAndWrite(response)
+
 		}
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.

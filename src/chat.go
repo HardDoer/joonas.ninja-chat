@@ -99,7 +99,7 @@ func SendToOther(body string, user *User, eventType string) {
 	})
 }
 
-func newChatConnection(connection *websocket.Conn) {
+func newChatConnection(connection *websocket.Conn, cookie string) {
 	log.Print("chatRequest():", "Connection opened.")
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
 	newUser := User{Name: "Anon" + nano, Connection: connection}
@@ -188,6 +188,6 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		log.Print("ChatRequest():", err)
 	} else {
-		newChatConnection(wsConnection)
+		newChatConnection(wsConnection, request.Header.Get("Cookie"))
 	}
 }
