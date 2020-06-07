@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 type chatLogin struct {
 	Scope     string `json:"scope"`
 	GrantType string `json:"grant_type"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
 }
 
 func handleCommand(body string, user *User) {
@@ -35,7 +38,7 @@ func handleCommand(body string, user *User) {
 
 // UpdateChatHistory - Adds the parameter defined chat history entry to chat history
 func loginRequest(username string, password string) error {
-	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials"}
+	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Username: username, Password: password}
 	jsonResponse, err := json.Marshal(chatLoginRequest)
 	if err != nil {
 		log.Print("loginRequest():", err)
@@ -49,17 +52,17 @@ func loginRequest(username string, password string) error {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
-	historyResponse, err := client.Do(req)
-	if historyResponse != nil && historyResponse.Status != "200 OK" {
-		log.Print("loginRequest():", "Error response "+historyResponse.Status)
-		return err
-	}
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
+	loginResponse, err := client.Do(req)
 	if err != nil {
 		log.Print("loginRequest():", err)
 		return err
 	}
-	defer historyResponse.Body.Close()
+	if loginResponse != nil && loginResponse.Status != "200 OK" {
+		log.Print("loginRequest():", "Error response "+loginResponse.Status)
+		return errors.New("Error response " + loginResponse.Status)
+	}
+	defer loginResponse.Body.Close()
 	return nil
 }
 

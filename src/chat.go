@@ -159,10 +159,11 @@ func reader(user *User) {
 func heartbeat() {
 	for {
 		if UserCount == 0 {
+			log.Println("heartbeat(): No users connected. Stopping heartbeat.")
 			return
 		}
 		time.Sleep(2 * time.Second)
-		log.Println("PING")
+		log.Println("heartbeat(): PING")
 		Users.Range(func(key, value interface{}) bool {
 			userValue := value.(*User)
 			if err := userValue.write(websocket.PingMessage, nil); err != nil {
