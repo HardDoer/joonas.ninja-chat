@@ -19,7 +19,6 @@ type EventData struct {
 	UserCount   int32     `json:"userCount"`
 	Name        string    `json:"name"`
 	CreatedDate time.Time `json:"createdDate"`
-	Auth        string    `json:"auth"`
 }
 
 // Users - A map containing all the connected users.

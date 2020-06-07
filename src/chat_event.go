@@ -17,7 +17,7 @@ import (
 type chatLogin struct {
 	Scope     string `json:"scope"`
 	GrantType string `json:"grant_type"`
-	Username  string `json:"username"`
+	Email  string `json:"email"`
 	Password  string `json:"password"`
 }
 
@@ -41,9 +41,9 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-func loginRequest(username string, password string) (res gatewayResponse, err error) {
+func loginRequest(email string, password string) (res gatewayResponse, err error) {
 	var gatewayRes gatewayResponse
-	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Username: username, Password: password}
+	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
 	jsonResponse, err := json.Marshal(chatLoginRequest)
 	if err != nil {
 		log.Print("loginRequest():", err)
@@ -83,7 +83,7 @@ func loginRequest(username string, password string) (res gatewayResponse, err er
 
 // HandleLoginEvent - Handles the logic with user login.
 func HandleLoginEvent(body string, user *User) error {
-	var username string
+	var email string
 	var password string
 	var parsedBody []string
 	var marshalAndWrite = func(data EventData) error {
@@ -100,10 +100,10 @@ func HandleLoginEvent(body string, user *User) error {
 
 	if len(body) < 512 {
 		parsedBody = strings.Split(body, ":")
-		username = parsedBody[0]
+		email = parsedBody[0]
 		password = parsedBody[1]
-		if len(username) > 1 && len(password) > 1 {
-			loginRes, loginError := loginRequest(username, password)
+		if len(email) > 1 && len(password) > 1 {
+			loginRes, loginError := loginRequest(email, password)
 			if loginError != nil {
 				response := EventData{Event: EventNotification, Body: "Login error.", UserCount: UserCount, CreatedDate: time.Now()}
 				return marshalAndWrite(response)
