@@ -70,18 +70,18 @@ func loginRequest(username string, password string) (res gatewayResponse, err er
 	defer loginResponse.Body.Close()
 	body, err := ioutil.ReadAll(loginResponse.Body)
 	if err != nil {
-		log.Print("getChatHistory():", err)
+		log.Print("loginRequest():", err)
 		return gatewayRes, err
 	}
 	err = json.Unmarshal(body, &gatewayRes)
 	if err != nil {
-		log.Print("getChatHistory():", err)
+		log.Print("loginRequest():", err)
 		return gatewayRes, err
 	}
 	return gatewayRes, nil
 }
 
-// HandleLoginEvent -
+// HandleLoginEvent - Handles the logic with user login.
 func HandleLoginEvent(body string, user *User) error {
 	var username string
 	var password string
@@ -111,7 +111,6 @@ func HandleLoginEvent(body string, user *User) error {
 			response := EventData{Event: EventLogin, Body: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
 			log.Print("HandleLoginEvent():", "Login successful")
 			return marshalAndWrite(response)
-
 		}
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
