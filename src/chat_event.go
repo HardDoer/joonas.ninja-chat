@@ -17,7 +17,7 @@ import (
 type chatLogin struct {
 	Scope     string `json:"scope"`
 	GrantType string `json:"grant_type"`
-	Email  string `json:"email"`
+	Email     string `json:"email"`
 	Password  string `json:"password"`
 }
 
