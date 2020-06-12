@@ -12,6 +12,9 @@ const EventJoin = "join"
 // EventLogin - An event which is sent when user wishes to log in.
 const EventLogin = "login"
 
+// EventTokenRefresh - An event which is sent when the token is refreshed and a new token is sent back to the user.
+const EventTokenRefresh = "tokenRefresh"
+
 // EventNameChange - An event which contains information that the user wants to change their name and also the new name.
 const EventNameChange = "nameChange"
 

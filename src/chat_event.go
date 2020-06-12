@@ -21,7 +21,7 @@ type chatLogin struct {
 	Password  string `json:"password"`
 }
 
-type gatewayResponse struct {
+type gatewayDTO struct {
 	Token string `json:"token"`
 }
 
@@ -41,8 +41,48 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-func loginRequest(email string, password string) (res gatewayResponse, err error) {
-	var gatewayRes gatewayResponse
+func refreshToken(token string) (res gatewayDTO, err error) {
+	var gatewayRes gatewayDTO
+	chatTokenRequest := gatewayDTO{Token: token}
+	jsonResponse, err := json.Marshal(chatTokenRequest)
+	if err != nil {
+		log.Print("refreshToken():", err)
+		return gatewayRes, err
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", os.Getenv("CHAT_TOKEN_URL"), bytes.NewBuffer(jsonResponse))
+	if err != nil {
+		log.Print("refreshToken():", err)
+		return gatewayRes, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", `Basic `+
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
+	tokenResponse, err := client.Do(req)
+	if err != nil {
+		log.Print("refreshToken():", err)
+		return gatewayRes, err
+	}
+	if tokenResponse != nil && tokenResponse.Status != "200 OK" {
+		log.Print("refreshToken():", "Error response "+tokenResponse.Status)
+		return gatewayRes, errors.New("Error response " + tokenResponse.Status)
+	}
+	defer tokenResponse.Body.Close()
+	body, err := ioutil.ReadAll(tokenResponse.Body)
+	if err != nil {
+		log.Print("refreshToken():", err)
+		return gatewayRes, err
+	}
+	err = json.Unmarshal(body, &gatewayRes)
+	if err != nil {
+		log.Print("refreshToken():", err)
+		return gatewayRes, err
+	}
+	return gatewayRes, nil
+}
+
+func loginRequest(email string, password string) (res gatewayDTO, err error) {
+	var gatewayRes gatewayDTO
 	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
 	jsonResponse, err := json.Marshal(chatLoginRequest)
 	if err != nil {
@@ -108,7 +148,7 @@ func HandleLoginEvent(body string, user *User) error {
 				response := EventData{Event: EventNotification, Body: "Login error.", UserCount: UserCount, CreatedDate: time.Now()}
 				return marshalAndWrite(response)
 			}
-			response := EventData{Event: EventLogin, Body: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
+			response := EventData{Event: EventLogin, Auth: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
 			log.Print("HandleLoginEvent():", "Login successful")
 			return marshalAndWrite(response)
 		}
@@ -164,9 +204,10 @@ func HandleTypingEvent(body string, user *User) error {
 }
 
 // HandleNameChangeEvent -
-func HandleNameChangeEvent(body string, user *User) error {
+func HandleNameChangeEvent(body string, user *User, token string) error {
 	if len(body) <= 64 && len(body) >= 1 {
 		var originalName string
+		var authToken = ""
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
 			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
@@ -176,10 +217,18 @@ func HandleNameChangeEvent(body string, user *User) error {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
+		if len(token) > 0 {
+			gatewayRes, err := refreshToken(token)
+			if err != nil {
+				SendToOne("Session error. Disconnected from chat. Refresh your browser to reconnect.", user, EventNotification)
+				return err
+			}
+			authToken = gatewayRes.Token
+		}
 		originalName = user.Name
 		user.Name = body
 		Users.Store(user, user)
-		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
+		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now(), Auth: authToken}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			return err

@@ -19,10 +19,12 @@ type EventData struct {
 	UserCount   int32     `json:"userCount"`
 	Name        string    `json:"name"`
 	CreatedDate time.Time `json:"createdDate"`
+	Auth        string    `json:"auth"`
 }
 
 // Users - A map containing all the connected users.
 var Users sync.Map
+
 // UserCount - Total count of connected users.
 var UserCount int32
 
@@ -111,9 +113,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		log.Print("newChatConnection():", err)
 	} else {
 		go reader(&newUser)
-		if UserCount == 1 {
-			go heartbeat()
-		}
+		go heartbeat(&newUser)
 	}
 }
 
@@ -146,7 +146,7 @@ func reader(user *User) {
 			case EventLogin:
 				readerError = HandleLoginEvent(EventData.Body, user)
 			case EventNameChange:
-				readerError = HandleNameChangeEvent(EventData.Body, user)
+				readerError = HandleNameChangeEvent(EventData.Body, user, EventData.Auth)
 			}
 			if readerError != nil {
 				return
@@ -155,21 +155,17 @@ func reader(user *User) {
 	}
 }
 
-func heartbeat() {
+func heartbeat(user *User) {
+	defer func() {
+		log.Println("heartbeat(): Closed heartbeat for user: " + user.Name)
+	}()
+	log.Print("heartbeat():", "Starting heartbeat for user: " + user.Name)
 	for {
-		if UserCount == 0 {
-			log.Println("heartbeat(): No users connected. Stopping heartbeat.")
+		time.Sleep(2 * time.Second)
+		if err := user.write(websocket.PingMessage, nil); err != nil {
+			log.Print("heartbeat():", err)
 			return
 		}
-		time.Sleep(2 * time.Second)
-		log.Println("heartbeat(): PING")
-		Users.Range(func(key, value interface{}) bool {
-			userValue := value.(*User)
-			if err := userValue.write(websocket.PingMessage, nil); err != nil {
-				log.Print("heartbeat():", err)
-			}
-			return true
-		})
 	}
 }
 
