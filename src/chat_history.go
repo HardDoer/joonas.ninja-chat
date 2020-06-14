@@ -10,6 +10,12 @@ import (
 	"os"
 )
 
+type chatHistory struct {
+	Body      []EventData `json:"history"`
+	UserCount int32       `json:"userCount"`
+	Event     string      `json:"event"`
+}
+
 // UpdateChatHistory - Adds the parameter defined chat history entry to chat history
 func UpdateChatHistory(jsonResponse []byte) {
 	client := &http.Client{}
@@ -19,7 +25,7 @@ func UpdateChatHistory(jsonResponse []byte) {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 	historyResponse, err := client.Do(req)
 	if historyResponse != nil && historyResponse.Status != "200 OK" {
 		log.Print("updateChatHistory():", "Error response "+historyResponse.Status)
@@ -35,7 +41,7 @@ func GetChatHistory() []byte {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL"), nil)
 	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("APP_KEY"))))
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 	historyResponse, err := client.Do(req)
 	if historyResponse != nil && historyResponse.Status != "200 OK" {
 		log.Print("getChatHistory():", "Error response "+historyResponse.Status)
@@ -57,7 +63,7 @@ func GetChatHistory() []byte {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: userCount}
+	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: UserCount}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("getChatHistory():", err)

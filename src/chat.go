@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,46 +22,32 @@ type EventData struct {
 	Auth        string    `json:"auth"`
 }
 
-type chatHistory struct {
-	Body      []EventData `json:"history"`
-	UserCount int32       `json:"userCount"`
-	Event     string      `json:"event"`
-}
-
 // Users - A map containing all the connected users.
 var Users sync.Map
-var userCount int32
+
+// UserCount - Total count of connected users.
+var UserCount int32
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-func removeUser(user *User) {
-	Users.Delete(user)
-	atomic.AddInt32(&userCount, -1)
+func getUserName(connection *websocket.Conn) string {
+	value, _ := Users.Load(connection)
+	user := value.(*User)
+	return user.Name
 }
 
-func handleCommand(body string, user *User) {
-	var splitBody = strings.Split(body, "/")
-	splitBody = strings.Split(splitBody[1], " ")
-	command := splitBody[0]
-	switch command {
-	case CommandWho:
-		HandleWhoCommand(user)
-		/*
-			case CommandChannel:
-				HandleChannelCommand(splitBody, connection)
-		*/
-	default:
-		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
-	}
+func removeUser(user *User) {
+	Users.Delete(user)
+	atomic.AddInt32(&UserCount, -1)
 }
 
 // SendToAll - sends the body string data to all connected clients
 func SendToAll(body string, name string, eventType string) {
 	log.Println("sendToAll(): " + body)
-	response := EventData{Event: eventType, Body: body, UserCount: userCount, Name: name, CreatedDate: time.Now()}
+	response := EventData{Event: eventType, Body: body, UserCount: UserCount, Name: name, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("sendToAll():", err)
@@ -83,7 +68,7 @@ func SendToAll(body string, name string, eventType string) {
 func SendToOne(body string, user *User, eventType string) {
 	log.Println("sendToOne(): " + body)
 	response := EventData{Event: eventType, Body: body,
-		UserCount: userCount, Name: "", CreatedDate: time.Now()}
+		UserCount: UserCount, Name: "", CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("sendToOne():", err)
@@ -96,7 +81,7 @@ func SendToOne(body string, user *User, eventType string) {
 // SendToOther - sends the body string data to all connected clients except the parameter given client
 func SendToOther(body string, user *User, eventType string) {
 	log.Print("sendToOther():", body)
-	response := EventData{Event: eventType, Body: body, UserCount: userCount, CreatedDate: time.Now()}
+	response := EventData{Event: eventType, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("sendToOther():", err)
@@ -115,18 +100,12 @@ func SendToOther(body string, user *User, eventType string) {
 	})
 }
 
-func getUserName(connection *websocket.Conn) string {
-	value, _ := Users.Load(connection)
-	user := value.(*User)
-	return user.Name
-}
-
-func newChatConnection(connection *websocket.Conn) {
+func newChatConnection(connection *websocket.Conn, cookie string) {
 	log.Print("chatRequest():", "Connection opened.")
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
 	newUser := User{Name: "Anon" + nano, Connection: connection}
 	Users.Store(&newUser, &newUser)
-	atomic.AddInt32(&userCount, 1)
+	atomic.AddInt32(&UserCount, 1)
 	err := HandleJoin(&newUser)
 	if err != nil {
 		connection.Close()
@@ -134,9 +113,7 @@ func newChatConnection(connection *websocket.Conn) {
 		log.Print("newChatConnection():", err)
 	} else {
 		go reader(&newUser)
-		if userCount == 1 {
-			go heartbeat()
-		}
+		go heartbeat(&newUser)
 	}
 }
 
@@ -166,8 +143,10 @@ func reader(user *User) {
 				readerError = HandleTypingEvent(EventData.Body, user)
 			case EventMessage:
 				readerError = HandleMessageEvent(EventData.Body, user)
+			case EventLogin:
+				readerError = HandleLoginEvent(EventData.Body, user)
 			case EventNameChange:
-				readerError = HandleNameChangeEvent(EventData.Body, user)
+				readerError = HandleNameChangeEvent(EventData.Body, user, EventData.Auth)
 			}
 			if readerError != nil {
 				return
@@ -176,20 +155,17 @@ func reader(user *User) {
 	}
 }
 
-func heartbeat() {
+func heartbeat(user *User) {
+	defer func() {
+		log.Println("heartbeat(): Closed heartbeat for user: " + user.Name)
+	}()
+	log.Print("heartbeat():", "Starting heartbeat for user: " + user.Name)
 	for {
-		if userCount == 0 {
+		time.Sleep(2 * time.Second)
+		if err := user.write(websocket.PingMessage, nil); err != nil {
+			log.Print("heartbeat():", err)
 			return
 		}
-		time.Sleep(2 * time.Second)
-		log.Println("PING")
-		Users.Range(func(key, value interface{}) bool {
-			userValue := value.(*User)
-			if err := userValue.write(websocket.PingMessage, nil); err != nil {
-				log.Print("heartbeat():", err)
-			}
-			return true
-		})
 	}
 }
 
@@ -207,6 +183,6 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		log.Print("ChatRequest():", err)
 	} else {
-		newChatConnection(wsConnection)
+		newChatConnection(wsConnection, request.Header.Get("Cookie"))
 	}
 }

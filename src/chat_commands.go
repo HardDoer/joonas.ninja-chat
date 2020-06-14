@@ -16,7 +16,7 @@ func HandleUserCommand(commands []string, connection *websocket.Conn) {
 	
 }
 
-// HandleWhoCommand - dibadaba
+// HandleWhoCommand - who is present in the current channel
 func HandleWhoCommand(user *User) {
 	var whoIsHere []string
 	Users.Range(func(key, value interface{}) bool {
