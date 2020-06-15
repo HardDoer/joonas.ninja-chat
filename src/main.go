@@ -1,11 +1,12 @@
 package main
 
 import (
-	"net/http"
-	"os"
-
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"log"
+	"net/http"
+	"os"
+	"time"
 )
 
 func initEnvFile() {
@@ -21,9 +22,25 @@ func initRoutes() {
 	log.Print("initRoutes():", "Routes initialized.")
 }
 
+func heartbeat() {
+	for {
+		if UserCount > 0 {
+			time.Sleep(2 * time.Second)
+			Users.Range(func(key, value interface{}) bool {
+				var userValue = value.(*User)
+				if err := userValue.write(websocket.PingMessage, nil); err != nil {
+					log.Print("heartbeat():", err)
+				}
+				return true
+			})
+		}
+	}
+}
+
 func main() {
 	initEnvFile()
 	initRoutes()
+	go heartbeat()
 	log.Print("main():", "Starting server...")
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
 		log.Panic(err)
