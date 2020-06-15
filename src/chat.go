@@ -113,7 +113,6 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		log.Print("newChatConnection():", err)
 	} else {
 		go reader(&newUser)
-		go heartbeat(&newUser)
 	}
 }
 
@@ -151,20 +150,6 @@ func reader(user *User) {
 			if readerError != nil {
 				return
 			}
-		}
-	}
-}
-
-func heartbeat(user *User) {
-	defer func() {
-		log.Println("heartbeat(): Closed heartbeat for user: " + user.Name)
-	}()
-	log.Print("heartbeat():", "Starting heartbeat for user: " + user.Name)
-	for {
-		time.Sleep(2 * time.Second)
-		if err := user.write(websocket.PingMessage, nil); err != nil {
-			log.Print("heartbeat():", err)
-			return
 		}
 	}
 }
