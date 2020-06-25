@@ -160,7 +160,9 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 		allowedOrigin, found := os.LookupEnv("ALLOWED_ORIGIN")
 		if found {
 			return r.Header.Get("Origin") == "http://"+allowedOrigin ||
-				r.Header.Get("Origin") == "https://"+allowedOrigin
+				r.Header.Get("Origin") == "https://"+allowedOrigin ||
+				r.Header.Get("Origin") == "https://www."+allowedOrigin ||
+				r.Header.Get("Origin") == "http://www."+allowedOrigin
 		}
 		return true
 	}
