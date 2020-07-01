@@ -112,6 +112,9 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		removeUser(&newUser)
 		log.Print("newChatConnection():", err)
 	} else {
+		if UserCount == 1 {
+			go heartbeat()
+		}
 		go reader(&newUser)
 	}
 }
@@ -151,6 +154,24 @@ func reader(user *User) {
 				return
 			}
 		}
+	}
+}
+
+func heartbeat() {
+	for {
+		log.Print("heartbeat():", "Pingataan..")
+		if UserCount == 0 {
+			log.Print("heartbeat():", "Sammutetaan.")
+			return
+		}
+		time.Sleep(2 * time.Second)
+		Users.Range(func(key, value interface{}) bool {
+			var userValue = value.(*User)
+			if err := userValue.write(websocket.PingMessage, nil); err != nil {
+				log.Print("heartbeat():", err)
+			}
+			return true
+		})
 	}
 }
 
