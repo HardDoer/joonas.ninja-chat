@@ -159,9 +159,8 @@ func reader(user *User) {
 
 func heartbeat() {
 	for {
-		log.Print("heartbeat():", "Pingataan..")
 		if UserCount == 0 {
-			log.Print("heartbeat():", "Sammutetaan.")
+			log.Print("heartbeat():", "Shutting down heartbeat.")
 			return
 		}
 		time.Sleep(2 * time.Second)
