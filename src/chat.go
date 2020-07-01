@@ -113,6 +113,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		log.Print("newChatConnection():", err)
 	} else {
 		if UserCount == 1 {
+			log.Print("newChatConnection():", "Starting heartbeat..")
 			go heartbeat()
 		}
 		go reader(&newUser)
