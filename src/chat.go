@@ -105,13 +105,13 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
 	newUser := User{Name: "Anon" + nano, Connection: connection}
 	Users.Store(&newUser, &newUser)
-	atomic.AddInt32(&UserCount, 1)
 	err := HandleJoin(&newUser)
 	if err != nil {
 		connection.Close()
 		removeUser(&newUser)
 		log.Print("newChatConnection():", err)
 	} else {
+		atomic.AddInt32(&UserCount, 1)
 		if UserCount == 1 {
 			log.Print("newChatConnection():", "Starting heartbeat..")
 			go heartbeat()
@@ -164,7 +164,6 @@ func heartbeat() {
 			log.Print("heartbeat():", "Shutting down heartbeat.")
 			return
 		}
-		time.Sleep(2 * time.Second)
 		Users.Range(func(key, value interface{}) bool {
 			var userValue = value.(*User)
 			if err := userValue.write(websocket.PingMessage, nil); err != nil {
