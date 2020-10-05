@@ -164,6 +164,7 @@ func heartbeat() {
 			log.Print("heartbeat():", "Shutting down heartbeat.")
 			return
 		}
+		time.Sleep(2 * time.Second)
 		Users.Range(func(key, value interface{}) bool {
 			var userValue = value.(*User)
 			if err := userValue.write(websocket.PingMessage, nil); err != nil {
