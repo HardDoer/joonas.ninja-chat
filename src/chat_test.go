@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -29,7 +30,7 @@ func setupChatHistory() *httptest.Server {
 	os.Setenv("CHAT_HISTORY_URL", chatHistoryServer.URL)
 	return chatHistoryServer
 }
-/*
+
 func TestJoin(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
@@ -95,4 +96,3 @@ func TestChangeName(t *testing.T) {
 		responseData.Event == EventNameChange,
 		"nameChange-event should return the user set name in the response and the response structure should be as expected.")
 }
-*/
