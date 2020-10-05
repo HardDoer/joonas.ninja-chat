@@ -22,6 +22,8 @@ type EventData struct {
 	Auth        string    `json:"auth"`
 }
 
+var isHeartbeatOn bool = false;
+
 // Users - A map containing all the connected users.
 var Users sync.Map
 
@@ -112,8 +114,9 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		removeUser(&newUser)
 		log.Print("newChatConnection():", err)
 	} else {
-		if UserCount == 1 {
+		if isHeartbeatOn == false {
 			log.Print("newChatConnection():", "Starting heartbeat..")
+			isHeartbeatOn = true
 			go heartbeat()
 		}
 		go reader(&newUser)
@@ -162,6 +165,7 @@ func heartbeat() {
 	for {
 		if UserCount == 0 {
 			log.Print("heartbeat():", "Shutting down heartbeat.")
+			isHeartbeatOn = false;
 			return
 		}
 		time.Sleep(2 * time.Second)
