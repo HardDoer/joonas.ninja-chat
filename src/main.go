@@ -41,8 +41,9 @@ func heartbeat() {
 func main() {
 	initEnvFile()
 	initRoutes()
-	go heartbeat()
 	log.Print("main():", "Starting server...")
+	log.Print("main():", "Starting heartbeat...")
+	go heartbeat()
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
 		log.Panic(err)
 	}
