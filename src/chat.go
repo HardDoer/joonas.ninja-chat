@@ -161,24 +161,6 @@ func reader(user *User) {
 	}
 }
 
-func heartbeat() {
-	for {
-		if UserCount == 0 {
-			log.Print("heartbeat():", "Shutting down heartbeat.")
-			isHeartbeatOn = false;
-			return
-		}
-		time.Sleep(2 * time.Second)
-		Users.Range(func(key, value interface{}) bool {
-			var userValue = value.(*User)
-			if err := userValue.write(websocket.PingMessage, nil); err != nil {
-				log.Print("heartbeat():", err)
-			}
-			return true
-		})
-	}
-}
-
 // ChatRequest - A chat request.
 func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool {
