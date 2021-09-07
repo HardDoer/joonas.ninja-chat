@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	pingWait = 10 * time.Second
-	pongWait = 60 * time.Second
+	pingWait       = 10 * time.Second
+	pongWait       = 60 * time.Second
 	maxMessageSize = 512
 )
 
@@ -29,17 +29,17 @@ func initRoutes() {
 	log.Print("initRoutes():", "Routes initialized.")
 }
 
-func heartbeat() {
+func heartbeat(user *User) {
+	log.Print("main():", "Starting heartbeat...")
+	defer func() {
+		log.Print("heartbeat():", "Stopping heartbeat..")
+		user.Connection.Close()
+	}()
 	for {
 		time.Sleep(2 * time.Second)
-		if UserCount > 0 {
-			Users.Range(func(key, value interface{}) bool {
-				var userValue = value.(*User)
-				if err := userValue.write(websocket.PingMessage, nil); err != nil {
-					log.Print("heartbeat():", err)
-				}
-				return true
-			})
+		if err := user.write(websocket.PingMessage, nil); err != nil {
+			log.Print("heartbeat():", err)
+			return
 		}
 	}
 }
@@ -48,8 +48,6 @@ func main() {
 	initEnvFile()
 	initRoutes()
 	log.Print("main():", "Starting server...")
-	log.Print("main():", "Starting heartbeat...")
-	go heartbeat()
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
 		log.Panic(err)
 	}
