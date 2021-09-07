@@ -35,7 +35,6 @@ func heartbeat() {
 		if UserCount > 0 {
 			Users.Range(func(key, value interface{}) bool {
 				var userValue = value.(*User)
-				userValue.Connection.SetWriteDeadline(time.Now().Add(pingWait))
 				if err := userValue.write(websocket.PingMessage, nil); err != nil {
 					log.Print("heartbeat():", err)
 				}
