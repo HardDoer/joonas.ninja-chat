@@ -10,6 +10,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	pingWait = 10 * time.Second
+	pongWait = 60 * time.Second
+	maxMessageSize = 512
+)
+
 func initEnvFile() {
 	var err = godotenv.Load("app.env")
 	if err != nil {
@@ -29,6 +35,7 @@ func heartbeat() {
 		if UserCount > 0 {
 			Users.Range(func(key, value interface{}) bool {
 				var userValue = value.(*User)
+				userValue.Connection.SetWriteDeadline(time.Now().Add(pingWait))
 				if err := userValue.write(websocket.PingMessage, nil); err != nil {
 					log.Print("heartbeat():", err)
 				}
