@@ -138,7 +138,7 @@ func HandleLoginEvent(body string, user *User) error {
 		return nil
 	}
 
-	if len(body) < 512 {
+	if len(body) < 320 {
 		parsedBody = strings.Split(body, ":")
 		email = parsedBody[0]
 		password = parsedBody[1]
@@ -162,7 +162,7 @@ func HandleLoginEvent(body string, user *User) error {
 // HandleMessageEvent -
 func HandleMessageEvent(body string, user *User) error {
 	var senderName = ""
-	if len(body) < 512 {
+	if len(body) < 320 {
 		if strings.Index(body, "/") != 0 {
 			value, _ := Users.Load(user)
 			user := value.(*User)

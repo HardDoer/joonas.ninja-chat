@@ -10,6 +10,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	pingWait = 10 * time.Second
+	pongWait = 60 * time.Second
+	maxMessageSize = 512
+)
+
 func initEnvFile() {
 	var err = godotenv.Load("app.env")
 	if err != nil {

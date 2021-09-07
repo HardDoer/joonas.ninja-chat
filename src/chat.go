@@ -126,6 +126,9 @@ func reader(user *User) {
 		removeUser(user)
 		SendToAll(user.Name+" has left the chatroom.", "", EventNotification)
 	}()
+	user.Connection.SetReadLimit(maxMessageSize)
+	user.Connection.SetReadDeadline(time.Now().Add(pongWait))
+	user.Connection.SetPongHandler(func(string) error { user.Connection.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		var EventData EventData
 		messageType, message, readerError := user.Connection.ReadMessage()
