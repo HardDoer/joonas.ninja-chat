@@ -21,6 +21,11 @@ type chatLogin struct {
 	Password  string `json:"password"`
 }
 
+type loginDTO struct {
+	Username     string `json:"username"`
+	Password  string `json:"password"`
+}
+
 type gatewayDTO struct {
 	Token string `json:"token"`
 }
@@ -119,44 +124,6 @@ func loginRequest(email string, password string) (res gatewayDTO, err error) {
 		return gatewayRes, err
 	}
 	return gatewayRes, nil
-}
-
-// HandleLoginEvent - Handles the logic with user login.
-func HandleLoginEvent(body string, user *User) error {
-	var email string
-	var password string
-	var parsedBody []string
-	var marshalAndWrite = func(data EventData) error {
-		jsonResponse, err := json.Marshal(data)
-		if err != nil {
-			log.Print("HandleLoginEvent():", err)
-		}
-		if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-			log.Print("HandleLoginEvent():", err)
-			return err
-		}
-		return nil
-	}
-
-	if len(body) < 320 {
-		parsedBody = strings.Split(body, ":")
-		email = parsedBody[0]
-		password = parsedBody[1]
-		if len(email) > 1 && len(password) > 1 {
-			loginRes, loginError := loginRequest(email, password)
-			if loginError != nil {
-				response := EventData{Event: EventNotification, Body: "Login error.", UserCount: UserCount, CreatedDate: time.Now()}
-				return marshalAndWrite(response)
-			}
-			response := EventData{Event: EventLogin, Auth: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
-			log.Print("HandleLoginEvent():", "Login successful")
-			return marshalAndWrite(response)
-		}
-	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
-		log.Println("Message is too long")
-	}
-	return nil
 }
 
 // HandleMessageEvent -
