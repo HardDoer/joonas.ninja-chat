@@ -46,44 +46,32 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-func refreshToken(token string) (res gatewayDTO, err error) {
-	var gatewayRes gatewayDTO
+func validateToken(token string) (err error) {
 	chatTokenRequest := gatewayDTO{Token: token}
 	jsonResponse, err := json.Marshal(chatTokenRequest)
 	if err != nil {
-		log.Print("refreshToken():", err)
-		return gatewayRes, err
+		log.Print("validateToken():", err)
+		return err
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", os.Getenv("CHAT_TOKEN_URL"), bytes.NewBuffer(jsonResponse))
 	if err != nil {
-		log.Print("refreshToken():", err)
-		return gatewayRes, err
+		log.Print("validateToken():", err)
+		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
 	tokenResponse, err := client.Do(req)
 	if err != nil {
-		log.Print("refreshToken():", err)
-		return gatewayRes, err
+		log.Print("validateToken():", err)
+		return err
 	}
 	if tokenResponse != nil && tokenResponse.Status != "200 OK" {
-		log.Print("refreshToken():", "Error response "+tokenResponse.Status)
-		return gatewayRes, errors.New("Error response " + tokenResponse.Status)
+		log.Print("validateToken():", "Error response "+tokenResponse.Status)
+		return errors.New("Error response " + tokenResponse.Status)
 	}
-	defer tokenResponse.Body.Close()
-	body, err := ioutil.ReadAll(tokenResponse.Body)
-	if err != nil {
-		log.Print("refreshToken():", err)
-		return gatewayRes, err
-	}
-	err = json.Unmarshal(body, &gatewayRes)
-	if err != nil {
-		log.Print("refreshToken():", err)
-		return gatewayRes, err
-	}
-	return gatewayRes, nil
+	return nil
 }
 
 func loginRequest(email string, password string) (res gatewayDTO, err error) {
@@ -184,6 +172,7 @@ func HandleNameChangeEvent(body string, user *User, token string) error {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
+		/*
 		if len(token) > 0 {
 			gatewayRes, err := refreshToken(token)
 			if err != nil {
@@ -192,6 +181,7 @@ func HandleNameChangeEvent(body string, user *User, token string) error {
 			}
 			authToken = gatewayRes.Token
 		}
+		*/
 		originalName = user.Name
 		user.Name = body
 		Users.Store(user, user)

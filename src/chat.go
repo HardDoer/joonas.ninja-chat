@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -104,8 +103,16 @@ func SendToOther(body string, user *User, eventType string) {
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
 	log.Print("chatRequest():", "Connection opened.")
+	if (cookie != "") {
+		err := validateToken(cookie)
+		if (err != nil) {
+			connection.Close()
+			log.Print("newChatConnection():", err)
+			return
+		}
+	}
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	newUser := User{Name: "Anon" + nano, Connection: connection}
+	newUser := User{Name: "Anon" + nano, Connection: connection, Token: cookie}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
 	err := HandleJoin(&newUser)
@@ -176,51 +183,4 @@ func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	} else {
 		newChatConnection(wsConnection, request.Header.Get("Cookie"))
 	}
-}
-
-func LoginRequest(responseWriter http.ResponseWriter, request *http.Request) {
-	var loginRes loginDTO
-
-	upgrader.CheckOrigin = func(r *http.Request) bool {
-		allowedOrigin, found := os.LookupEnv("ALLOWED_ORIGIN")
-		if found {
-			return r.Header.Get("Origin") == "http://"+allowedOrigin ||
-				r.Header.Get("Origin") == "https://"+allowedOrigin ||
-				r.Header.Get("Origin") == "https://www."+allowedOrigin ||
-				r.Header.Get("Origin") == "http://www."+allowedOrigin
-		}
-		return true
-	}
-	if request.Method == "POST" {
-		body, err := ioutil.ReadAll(request.Body)
-		err = json.Unmarshal(body, &loginRes)
-		if err != nil {
-			log.Print("getChatHistory():", err)
-		}
-		res, err := HandleLoginRequest(loginRes.Username, loginRes.Password)
-		if (err != nil) {
-			http.Error(responseWriter, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		responseWriter.Write(res)
-	} else {
-		http.NotFound(responseWriter, request)
-	}
-}
-
-// HandleLoginEvent - Handles the logic with user login.
-func HandleLoginRequest(email string, password string) (parseResponse []byte, err error) {
-	var response EventData
-
-	if len(email) > 1 && len(password) > 1 {
-		loginRes, loginError := loginRequest(email, password)
-		if loginError != nil {
-			return nil, loginError
-		} else {
-			response = EventData{Event: EventLogin, Auth: loginRes.Token, UserCount: UserCount, CreatedDate: time.Now()}
-		}
-		log.Print("HandleLoginEvent():", "Login successful")
-		return json.Marshal(response)
-	}
-	return nil, nil
 }
