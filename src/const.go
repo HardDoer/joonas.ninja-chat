@@ -27,6 +27,9 @@ const EventChatHistory = "chatHistory"
 // EventWho - An event for who
 const EventWho = "whoCommand"
 
+// EventWho - An event for help
+const EventHelp = "helpCommand"
+
 // CommandWho - List users command for the chat.
 const CommandWho = "who"
 
@@ -35,3 +38,5 @@ const CommandUser = "user"
 
 // CommandChannel - Channel command that is used as a prefix for all the different channel operations like create and list.
 const CommandChannel = "channel"
+
+const CommandHelp = "help"

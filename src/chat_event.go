@@ -5,13 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type chatLogin struct {
@@ -22,8 +23,8 @@ type chatLogin struct {
 }
 
 type loginDTO struct {
-	Username     string `json:"username"`
-	Password  string `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type gatewayDTO struct {
@@ -37,10 +38,10 @@ func handleCommand(body string, user *User) {
 	switch command {
 	case CommandWho:
 		HandleWhoCommand(user)
-		/*
-			case CommandChannel:
-				HandleChannelCommand(splitBody, connection)
-		*/
+	case CommandHelp:
+		HandleHelpCommand(user)
+	case CommandChannel:
+		HandleChannelCommand(splitBody, user)
 	default:
 		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
 	}
@@ -159,10 +160,9 @@ func HandleTypingEvent(body string, user *User) error {
 }
 
 // HandleNameChangeEvent -
-func HandleNameChangeEvent(body string, user *User, token string) error {
+func HandleNameChangeEvent(body string, user *User) error {
 	if len(body) <= 64 && len(body) >= 1 {
 		var originalName string
-		var authToken = ""
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
 			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
@@ -172,20 +172,10 @@ func HandleNameChangeEvent(body string, user *User, token string) error {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
-		/*
-		if len(token) > 0 {
-			gatewayRes, err := refreshToken(token)
-			if err != nil {
-				SendToOne("Session error. Disconnected from chat. Refresh your browser to reconnect.", user, EventNotification)
-				return err
-			}
-			authToken = gatewayRes.Token
-		}
-		*/
 		originalName = user.Name
 		user.Name = body
 		Users.Store(user, user)
-		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now(), Auth: authToken}
+		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			return err
