@@ -46,7 +46,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_URL"), bytes.NewBuffer(jsonResponse))
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
-					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
+					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)

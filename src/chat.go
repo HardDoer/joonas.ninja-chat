@@ -110,8 +110,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 				result = false
 				return result
 			}
-			result = true
-			return result
+			return true
 		})
 		if (result == false) {
 			connection.Close()
