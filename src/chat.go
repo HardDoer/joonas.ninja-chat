@@ -102,9 +102,24 @@ func SendToOther(body string, user *User, eventType string) {
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
 	log.Print("chatRequest():", "Connection opened.")
-	if (cookie != "") {
+	if cookie != "" {
+		var result = true
+		Users.Range(func(key, value interface{}) bool {
+			var userValue = value.(*User)
+			if len(userValue.Token) > 0 && userValue.Token == cookie {
+				result = false
+				return result
+			}
+			result = true
+			return result
+		})
+		if (result == false) {
+			connection.Close()
+			log.Print("newChatConnection(): ", "User with this token already logged in.")
+			return
+		}
 		err := validateToken(cookie)
-		if (err != nil) {
+		if err != nil {
 			connection.Close()
 			log.Print("newChatConnection():", err)
 			return
