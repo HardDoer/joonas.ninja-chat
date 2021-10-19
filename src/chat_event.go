@@ -43,7 +43,7 @@ func handleCommand(body string, user *User) {
 	case CommandChannel:
 		HandleChannelCommand(splitBody, user)
 	default:
-		SendToOne("Command "+"'"+body+"' not recognized.", user, EventNotification)
+		SendToOne(ErrorCodeCommandNotRecognized, user, EventNotification)
 	}
 }
 

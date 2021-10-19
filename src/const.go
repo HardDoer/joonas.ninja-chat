@@ -30,6 +30,8 @@ const EventWho = "whoCommand"
 // EventWho - An event for help
 const EventHelp = "helpCommand"
 
+const EventChannelList = "channelList"
+
 // CommandWho - List users command for the chat.
 const CommandWho = "who"
 
@@ -40,3 +42,5 @@ const CommandUser = "user"
 const CommandChannel = "channel"
 
 const CommandHelp = "help"
+
+const ErrorCodeCommandNotRecognized = "0"
