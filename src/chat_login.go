@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -66,5 +67,5 @@ func HandleLoginRequest(email string, password string) (loginToken string, err e
 		log.Print("HandleLoginEvent():", "Login successful")
 		return responseToken, nil
 	}
-	return "", nil
+	return "", errors.New("Parameters too short")
 }
