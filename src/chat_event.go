@@ -43,7 +43,7 @@ func handleCommand(body string, user *User) {
 	case CommandChannel:
 		HandleChannelCommand(splitBody, user)
 	default:
-		SendToOne(ErrorCodeCommandNotRecognized, user, EventNotification)
+		SendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventNotification)
 	}
 }
 
@@ -123,7 +123,7 @@ func HandleMessageEvent(body string, user *User) error {
 			value, _ := Users.Load(user)
 			user := value.(*User)
 			senderName = user.Name
-			SendToAll(body, senderName, EventMessage)
+			SendToAll(body, user.CurrentChannelId, senderName, EventMessage)
 		} else {
 			handleCommand(body, user)
 		}
@@ -136,8 +136,8 @@ func HandleMessageEvent(body string, user *User) error {
 
 // HandleJoin -
 func HandleJoin(chatUser *User) error {
-	response := EventData{Event: EventJoin, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
-	chatHistory := GetChatHistory()
+	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
+	chatHistory := GetChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
 			return err
@@ -150,7 +150,7 @@ func HandleJoin(chatUser *User) error {
 	if err := chatUser.write(websocket.TextMessage, jsonResponse); err != nil {
 		return err
 	}
-	SendToOther(chatUser.Name+" has joined the chat.", chatUser, EventNotification)
+	SendToOther(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
 	return nil
 }
 

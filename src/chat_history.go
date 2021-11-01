@@ -37,9 +37,9 @@ func UpdateChatHistory(jsonResponse []byte) {
 }
 
 // GetChatHistory - Returns the entire chat history.
-func GetChatHistory() []byte {
+func GetChatHistory(channelId string) []byte {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL"), nil)
+	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL") + "?channelId=" + channelId, nil)
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 	historyResponse, err := client.Do(req)
