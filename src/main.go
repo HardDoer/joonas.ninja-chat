@@ -26,6 +26,8 @@ func initEnvFile() {
 
 func initRoutes() {
 	http.HandleFunc("/api/v1/ws/chat", ChatRequest)
+	http.HandleFunc("/api/v1/chat/login", LoginRequest)
+	http.HandleFunc("/api/v1/chat/session", SessionRequest)
 	log.Print("initRoutes():", "Routes initialized.")
 }
 

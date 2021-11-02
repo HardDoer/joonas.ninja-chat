@@ -8,10 +8,11 @@ import (
 
 // User - A chat user.
 type User struct {
-	Name       string
-	Token      string
-	Connection *websocket.Conn
-	mutex      sync.Mutex
+	Name             string
+	Token            string
+	Connection       *websocket.Conn
+	mutex            sync.Mutex
+	CurrentChannelId string
 }
 
 func (u *User) write(messageType int, data []byte) error {
