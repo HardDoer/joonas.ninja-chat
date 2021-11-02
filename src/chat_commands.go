@@ -85,6 +85,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 			} else if subCommand == "invite" {
 				if len(commands) != 4 {
+					SendToOne("Insufficient parameters.", user, EventNotification)
 					return
 				}
 				var parameter1 = commands[2]

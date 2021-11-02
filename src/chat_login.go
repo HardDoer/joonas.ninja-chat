@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func SessionRequest(responseWriter http.ResponseWriter, request *http.Request) {
@@ -47,7 +48,10 @@ func LoginRequest(responseWriter http.ResponseWriter, request *http.Request) {
 		if (!found){
 			domain = ""
 		}
-		responseWriter.Header().Add("Set-Cookie", "session=" + token + "; httpOnly; sameSite=Strict; path=/;" + isSecure + "domain=" + domain + ";")
+		var exp = time.Now()
+		exp =  exp.AddDate(1, 0, 0)
+		s := exp.Format(http.TimeFormat)
+		responseWriter.Header().Add("Set-Cookie", "session=" + token + "; expires=" + s + "; httpOnly; sameSite=Strict; path=/;" + isSecure + "domain=" + domain + ";")
 	} else {
 		http.NotFound(responseWriter, request)
 	}
