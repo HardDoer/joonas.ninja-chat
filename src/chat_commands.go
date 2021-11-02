@@ -169,7 +169,6 @@ func HandleChannelCommand(commands []string, user *User) {
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
-				body, err := ioutil.ReadAll(channelResponse.Body)
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)
 					// Palauta joku virhe
@@ -177,7 +176,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				SendToOne(string(body), user, EventChannelList)
+				SendToOne("Successfully set channel: '" + user.CurrentChannelId + "' as your default channel.", user, EventChannelList)
 				defer channelResponse.Body.Close()
 			}
 		} else {
