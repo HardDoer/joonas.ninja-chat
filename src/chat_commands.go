@@ -46,7 +46,7 @@ func HandleHelpCommand(user *User) {
 	var response []helpDTO
 	response = append(response, helpDTO{Desc: "This command", Name: CommandHelp})
 	response = append(response, helpDTO{Desc: "Logged in users on this channel", Name: CommandWho})
-	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <email>', 'create <channelName>.' and 'join <channelName>'", Name: CommandChannel})
+	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <channelName> <email>', 'create <channelName>.' and 'join <channelName>'", Name: CommandChannel})
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		return
