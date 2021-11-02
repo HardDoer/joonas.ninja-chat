@@ -198,7 +198,9 @@ func HandleWhoCommand(user *User) {
 	var whoIsHere []string
 	Users.Range(func(key, value interface{}) bool {
 		v := value.(*User)
-		whoIsHere = append(whoIsHere, v.Name)
+		if (user.CurrentChannelId == v.CurrentChannelId) {
+			whoIsHere = append(whoIsHere, v.Name)
+		}
 		return true
 	})
 	jsonResponse, err := json.Marshal(whoIsHere)
