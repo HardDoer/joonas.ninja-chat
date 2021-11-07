@@ -71,8 +71,7 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 		var originalName string
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
-			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
-			log.Println("No empty names!")
+			SendToOne("No empty names!", user, EventNotification)
 			return nil
 		}
 		key, _ := Users.Load(user)
