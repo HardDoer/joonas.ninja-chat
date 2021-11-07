@@ -74,6 +74,7 @@ func TestSendMessage(t *testing.T) {
 		"Response to a normal chatmessage should be valid.")
 }
 
+/*
 func TestChangeName(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
@@ -96,3 +97,4 @@ func TestChangeName(t *testing.T) {
 		responseData.Event == EventNameChange,
 		"nameChange-event should return the user set name in the response and the response structure should be as expected.")
 }
+*/
