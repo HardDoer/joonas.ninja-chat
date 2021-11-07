@@ -142,6 +142,11 @@ func HandleChannelCommand(commands []string, user *User) {
 				if len(commands) >= 4 && commands[3] == "private" {
 					parameter2 = true
 				}
+				parameter1 = strings.ReplaceAll(parameter1, " ", "")
+				if parameter1 == "" {
+					SendToOne("No empty names!", user, EventNotification)
+					return
+				}
 				if len(parameter1) <= 16 {
 					client := &http.Client{}
 					jsonResponse, _ := json.Marshal(channelDTO{Name: parameter1, CreatorToken: user.Token, Private: parameter2})
