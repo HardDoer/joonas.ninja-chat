@@ -31,6 +31,10 @@ type gatewayDTO struct {
 	Token string `json:"token"`
 }
 
+type tokenValidationRes struct {
+	Username string `json:"username"`
+}
+
 func handleCommand(body string, user *User) {
 	var splitBody = strings.Split(body, "/")
 	splitBody = strings.Split(splitBody[1], " ")
@@ -38,6 +42,8 @@ func handleCommand(body string, user *User) {
 	switch command {
 	case CommandWho:
 		HandleWhoCommand(user)
+	case CommandNameChange:
+		HandleNameChangeCommand(splitBody, user)
 	case CommandHelp:
 		HandleHelpCommand(user)
 	case CommandChannel:
@@ -47,18 +53,20 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-func validateToken(token string) (err error) {
+func validateToken(token string) (validationRes tokenValidationRes, err error) {
 	chatTokenRequest := gatewayDTO{Token: token}
 	jsonResponse, err := json.Marshal(chatTokenRequest)
+	var tokenJson tokenValidationRes
+
 	if err != nil {
 		log.Print("validateToken():", err)
-		return err
+		return tokenJson, err
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", os.Getenv("CHAT_TOKEN_URL"), bytes.NewBuffer(jsonResponse))
 	if err != nil {
 		log.Print("validateToken():", err)
-		return err
+		return tokenJson, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
@@ -66,13 +74,24 @@ func validateToken(token string) (err error) {
 	tokenResponse, err := client.Do(req)
 	if err != nil {
 		log.Print("validateToken():", err)
-		return err
+		return tokenJson, err
 	}
 	if tokenResponse != nil && tokenResponse.Status != "200 OK" {
 		log.Print("validateToken():", "Error response "+tokenResponse.Status)
-		return errors.New("Error response " + tokenResponse.Status)
+		return tokenJson, errors.New("Error response " + tokenResponse.Status)
 	}
-	return nil
+	defer tokenResponse.Body.Close()
+	body, err := ioutil.ReadAll(tokenResponse.Body)
+	if err != nil {
+		log.Print("getChatHistory():", err)
+		return tokenJson, err
+	}
+	err = json.Unmarshal(body, &tokenJson)
+	if err != nil {
+		log.Print("getChatHistory():", err)
+		return tokenJson, err
+	}
+	return tokenJson, nil
 }
 
 func loginRequest(email string, password string) (res gatewayDTO, err error) {
@@ -156,37 +175,5 @@ func HandleJoin(chatUser *User) error {
 
 // HandleTypingEvent -
 func HandleTypingEvent(body string, user *User) error {
-	return nil
-}
-
-// HandleNameChangeEvent -
-func HandleNameChangeEvent(body string, user *User) error {
-	if len(body) <= 64 && len(body) >= 1 {
-		var originalName string
-		body = strings.ReplaceAll(body, " ", "")
-		if body == "" {
-			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
-			log.Println("No empty names!")
-			return nil
-		}
-		key, _ := Users.Load(user)
-		user := key.(*User)
-		log.Println("handleNameChangeEvent(): User " + user.Name + " is changing name.")
-		originalName = user.Name
-		user.Name = body
-		Users.Store(user, user)
-		response := EventData{Event: EventNameChange, Body: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			return err
-		}
-		if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-			return err
-		}
-		SendToOther(originalName+" is now called "+body, user, EventNotification)
-	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
-		log.Println("New name is too long or too short")
-	}
 	return nil
 }

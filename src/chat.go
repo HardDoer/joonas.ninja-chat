@@ -105,6 +105,10 @@ func SendToOther(body string, user *User, eventType string) {
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
 	log.Print("chatRequest():", "Connection opened.")
+	var validationRes tokenValidationRes
+	var err error
+	var newUser User
+
 	if cookie != "" {
 		var result = true
 		Users.Range(func(key, value interface{}) bool {
@@ -120,7 +124,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 			log.Print("newChatConnection(): ", "User with this token already logged in.")
 			return
 		}
-		err := validateToken(cookie)
+		validationRes, err = validateToken(cookie)
 		if err != nil {
 			connection.Close()
 			log.Print("newChatConnection():", err)
@@ -128,10 +132,14 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		}
 	}
 	nano := strconv.Itoa(int(time.Now().UnixNano()))
-	newUser := User{Name: "Anon" + nano, Connection: connection, Token: cookie}
+	if len(validationRes.Username) > 0 {
+		newUser = User{Name: validationRes.Username, Connection: connection, Token: cookie}
+	} else {
+		newUser = User{Name: "Anon" + nano, Connection: connection, Token: cookie}
+	}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
-	err := HandleJoin(&newUser)
+	err = HandleJoin(&newUser)
 	if err != nil {
 		connection.Close()
 		removeUser(&newUser)
@@ -174,8 +182,6 @@ func reader(user *User) {
 				readerError = HandleTypingEvent(EventData.Body, user)
 			case EventMessage:
 				readerError = HandleMessageEvent(EventData.Body, user)
-			case EventNameChange:
-				readerError = HandleNameChangeEvent(EventData.Body, user)
 			}
 			if readerError != nil {
 				return

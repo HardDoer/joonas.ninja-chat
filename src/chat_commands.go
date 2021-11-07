@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -22,6 +23,11 @@ type channelDTO struct {
 	Name         string `json:"name"`
 	CreatorToken string `json:"creatorToken"`
 	Private      bool   `json:"private"`
+}
+
+type nameChangeDTO struct {
+	Username     string `json:"username"`
+	CreatorToken string `json:"creatorToken"`
 }
 
 type channelInviteDTO struct {
@@ -52,6 +58,58 @@ func HandleHelpCommand(user *User) {
 		return
 	}
 	SendToOne(string(jsonResponse), user, EventHelp)
+}
+
+func HandleNameChangeCommand(splitBody []string, user *User) error {
+	if len(splitBody) < 2 {
+		return nil
+	}
+	var body = splitBody[1]
+
+	if len(body) <= 64 && len(body) >= 1 {
+		var originalName string
+		body = strings.ReplaceAll(body, " ", "")
+		if body == "" {
+			// TODO. Palauta joku virhe käyttäjälle vääränlaisesta nimestä.
+			log.Println("No empty names!")
+			return nil
+		}
+		key, _ := Users.Load(user)
+		user := key.(*User)
+		log.Println("HandleNameChangeCommand(): User " + user.Name + " is changing name.")
+		if user.Name == body {
+			SendToOne("You already have that nickname.", user, EventNotification)
+			return nil
+		}
+		if len(user.Token) > 0 {
+			client := &http.Client{}
+			jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
+			req, _ := http.NewRequest("PUT", os.Getenv("CHAT_CHANGE_NICKNAME"), bytes.NewBuffer(jsonResponse))
+			req.Header.Add("Content-Type", "application/json")
+			req.Header.Add("Authorization", `Basic `+
+				base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
+			changeNameResponse, err := client.Do(req)
+			if err != nil {
+				log.Print("HandleNameChangeCommand():", err)
+				return err
+			}
+			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
+				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
+				SendToOne("Names must be unique.", user, EventNotification)
+				return nil
+			}
+			defer changeNameResponse.Body.Close()
+		}
+		originalName = user.Name
+		user.Name = body
+		Users.Store(user, user)
+		SendToOne(body, user, EventNameChange)
+		SendToOther(originalName+" is now called "+body, user, EventNotification)
+	} else {
+		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
+		log.Println("New name is too long or too short")
+	}
+	return nil
 }
 
 // HandleChannelCommand - dibadaba
@@ -121,12 +179,12 @@ func HandleChannelCommand(commands []string, user *User) {
 				channelResponse, err := client.Do(req)
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)
-					SendToOne("Error joining channel: '" + parameter1 + "'", user, EventNotification)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventNotification)
 					return
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
-					SendToOne("Error joining channel: '" + parameter1 + "'", user, EventNotification)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventNotification)
 					return
 				}
 				defer channelResponse.Body.Close()
@@ -136,10 +194,10 @@ func HandleChannelCommand(commands []string, user *User) {
 					return
 				}
 				_ = json.Unmarshal(body, &readResponse)
-				SendToOther(user.Name + " went looking for better content.", user, EventNotification)
+				SendToOther(user.Name+" went looking for better content.", user, EventNotification)
 				user.CurrentChannelId = readResponse.Name
 				err = HandleJoin(user)
-				SendToOne("Succesfully joined channel '" + parameter1 + "'", user, EventNotification)
+				SendToOne("Succesfully joined channel '"+parameter1+"'", user, EventNotification)
 			} else if subCommand == "list" {
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token})
@@ -177,7 +235,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				SendToOne("Successfully set channel: '" + user.CurrentChannelId + "' as your default channel.", user, EventChannelList)
+				SendToOne("Successfully set channel: '"+user.CurrentChannelId+"' as your default channel.", user, EventChannelList)
 				defer channelResponse.Body.Close()
 			}
 		} else {
@@ -198,7 +256,7 @@ func HandleWhoCommand(user *User) {
 	var whoIsHere []string
 	Users.Range(func(key, value interface{}) bool {
 		v := value.(*User)
-		if (user.CurrentChannelId == v.CurrentChannelId) {
+		if user.CurrentChannelId == v.CurrentChannelId {
 			whoIsHere = append(whoIsHere, v.Name)
 		}
 		return true
