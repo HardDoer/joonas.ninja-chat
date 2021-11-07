@@ -52,7 +52,8 @@ func HandleHelpCommand(user *User) {
 	var response []helpDTO
 	response = append(response, helpDTO{Desc: "This command", Name: CommandHelp})
 	response = append(response, helpDTO{Desc: "Logged in users on this channel", Name: CommandWho})
-	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <channelName> <email>', 'create <channelName>.' and 'join <channelName>'", Name: CommandChannel})
+	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <channelName> <email>', 'create <channelName>.', 'join <channelName>' and 'list'", Name: CommandChannel})
+	response = append(response, helpDTO{Desc: "Change your name. Nickname is only persistent if you are registered and logged in. Parameters: <newName>'", Name: CommandNameChange})
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		return
@@ -96,6 +97,24 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
 				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
 				SendToOne("Names must be unique.", user, EventNotification)
+				return nil
+			}
+			defer changeNameResponse.Body.Close()
+		} else {
+			client := &http.Client{}
+			jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body})
+			req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHECK_NICKNAME"), bytes.NewBuffer(jsonResponse))
+			req.Header.Add("Content-Type", "application/json")
+			req.Header.Add("Authorization", `Basic `+
+				base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
+			changeNameResponse, err := client.Do(req)
+			if err != nil {
+				log.Print("HandleNameChangeCommand():", err)
+				return err
+			}
+			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
+				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
+				SendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventNotification)
 				return nil
 			}
 			defer changeNameResponse.Body.Close()
