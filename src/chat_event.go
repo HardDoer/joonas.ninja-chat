@@ -49,7 +49,7 @@ func handleCommand(body string, user *User) {
 	case CommandChannel:
 		HandleChannelCommand(splitBody, user)
 	default:
-		SendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventNotification)
+		SendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	}
 }
 

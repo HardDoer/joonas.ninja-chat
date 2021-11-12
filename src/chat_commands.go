@@ -71,14 +71,14 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 		var originalName string
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
-			SendToOne("No empty names!", user, EventNotification)
+			SendToOne("No empty names!", user, EventErrorNotification)
 			return nil
 		}
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		log.Println("HandleNameChangeCommand(): User " + user.Name + " is changing name.")
 		if user.Name == body {
-			SendToOne("You already have that nickname.", user, EventNotification)
+			SendToOne("You already have that nickname.", user, EventErrorNotification)
 			return nil
 		}
 		if len(user.Token) > 0 {
@@ -95,7 +95,7 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 			}
 			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
 				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
-				SendToOne("Names must be unique.", user, EventNotification)
+				SendToOne("Names must be unique.", user, EventErrorNotification)
 				return nil
 			}
 			defer changeNameResponse.Body.Close()
@@ -113,7 +113,7 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 			}
 			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
 				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
-				SendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventNotification)
+				SendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventErrorNotification)
 				return nil
 			}
 			defer changeNameResponse.Body.Close()
@@ -143,7 +143,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 				parameter1 = strings.ReplaceAll(parameter1, " ", "")
 				if parameter1 == "" {
-					SendToOne("No empty names!", user, EventNotification)
+					SendToOne("No empty names!", user, EventErrorNotification)
 					return
 				}
 				if len(parameter1) <= 16 {
@@ -166,7 +166,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 			} else if subCommand == "invite" {
 				if len(commands) != 4 {
-					SendToOne("Insufficient parameters.", user, EventNotification)
+					SendToOne("Insufficient parameters.", user, EventErrorNotification)
 					return
 				}
 				var parameter1 = commands[2]
@@ -202,12 +202,12 @@ func HandleChannelCommand(commands []string, user *User) {
 				channelResponse, err := client.Do(req)
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)
-					SendToOne("Error joining channel: '"+parameter1+"'", user, EventNotification)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 					return
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
-					SendToOne("Error joining channel: '"+parameter1+"'", user, EventNotification)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 					return
 				}
 				defer channelResponse.Body.Close()
@@ -241,7 +241,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				defer channelResponse.Body.Close()
 			} else if subCommand == "default" {
 				if len(user.CurrentChannelId) == 0 {
-					SendToOne("You are currently on the 'public' channel which does not need to be set as default.", user, EventNotification)
+					SendToOne("You are currently on the 'public' channel which does not need to be set as default.", user, EventErrorNotification)
 					return
 				}
 				client := &http.Client{}
@@ -262,10 +262,10 @@ func HandleChannelCommand(commands []string, user *User) {
 				defer channelResponse.Body.Close()
 			}
 		} else {
-			SendToOne("Must be logged in for that command to work.", user, EventNotification)
+			SendToOne("Must be logged in for that command to work.", user, EventErrorNotification)
 		}
 	} else {
-		SendToOne("Not enough parameters. See '/help'", user, EventNotification)
+		SendToOne("Not enough parameters. See '/help'", user, EventErrorNotification)
 	}
 }
 
