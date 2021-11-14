@@ -110,20 +110,15 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	var newUser User
 
 	if cookie != "" {
-		var result = true
 		Users.Range(func(key, value interface{}) bool {
 			var userValue = value.(*User)
 			if len(userValue.Token) > 0 && userValue.Token == cookie {
-				result = false
-				return result
+				userValue.Connection.Close()
+				removeUser(userValue)
+				return false
 			}
 			return true
 		})
-		if result == false {
-			connection.Close()
-			log.Print("newChatConnection(): ", "User with this token already logged in.")
-			return
-		}
 		validationRes, err = validateToken(cookie)
 		if err != nil {
 			connection.Close()
