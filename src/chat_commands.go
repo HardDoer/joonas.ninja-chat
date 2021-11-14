@@ -212,6 +212,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
+				log.Print("Tähän hajoo maybe?")
 				channelResponse, err := client.Do(req)
 				log.Print("DEBUG2")
 				if err != nil {
