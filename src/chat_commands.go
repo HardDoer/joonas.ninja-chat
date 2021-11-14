@@ -132,10 +132,8 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 
 // HandleChannelCommand - dibadaba
 func HandleChannelCommand(commands []string, user *User) {
-	log.Print("DEBUG: HandleChannelCommand")
 	if len(commands) >= 2 {
 		var subCommand = commands[1]
-		log.Print("DEBUG: ", subCommand)
 		if len(user.Token) > 0 {
 			if subCommand == "create" {
 				var parameter1 = commands[2]
@@ -195,7 +193,6 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 				var parameter1 = commands[2]
 				var readResponse channelReadResponse
-				log.Print("DEBUG1")
 				client := &http.Client{}
 				jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
 				if err != nil {
@@ -212,9 +209,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-				log.Print("Tähän hajoo maybe?")
 				channelResponse, err := client.Do(req)
-				log.Print("DEBUG2")
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)
 					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
@@ -231,7 +226,6 @@ func HandleChannelCommand(commands []string, user *User) {
 					log.Print("HandleChannelCommand():", err)
 					return
 				}
-				log.Print("DEBUG4")
 				_ = json.Unmarshal(body, &readResponse)
 				SendToOther(user.Name+" went looking for better content.", user, EventNotification)
 				user.CurrentChannelId = readResponse.Name
@@ -242,8 +236,6 @@ func HandleChannelCommand(commands []string, user *User) {
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token})
 				req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
 				if err != nil {
-					log.Print("VIRHE1")
-					log.Print("VIRHE?: ", err)
 					log.Print("HandleChannelCommand():", err)
 					// Palauta joku virhe
 				}
@@ -252,23 +244,17 @@ func HandleChannelCommand(commands []string, user *User) {
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
 				if err != nil {
-					log.Print("VIRHE2")
-					log.Print("VIRHE?: ", err)
 					log.Print("HandleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				body, err := ioutil.ReadAll(channelResponse.Body)
 				if err != nil {
-					log.Print("VIRHE3")
-					log.Print("VIRHE?: ", err)
 					log.Print("HandleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				log.Print("DEBUG1123123")
-				log.Print("DEBUG: ", string(body))
 				SendToOne(string(body), user, EventChannelList)
 				defer channelResponse.Body.Close()
 			} else if subCommand == "default" {
