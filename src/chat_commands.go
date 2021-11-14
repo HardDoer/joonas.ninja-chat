@@ -195,6 +195,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 				var parameter1 = commands[2]
 				var readResponse channelReadResponse
+				log.Print("DEBUG1")
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
 				req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
@@ -202,6 +203,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
+				log.Print("DEBUG2")
 				if err != nil {
 					log.Print("HandleChannelCommand():", err)
 					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
@@ -218,6 +220,7 @@ func HandleChannelCommand(commands []string, user *User) {
 					log.Print("HandleChannelCommand():", err)
 					return
 				}
+				log.Print("DEBUG4")
 				_ = json.Unmarshal(body, &readResponse)
 				SendToOther(user.Name+" went looking for better content.", user, EventNotification)
 				user.CurrentChannelId = readResponse.Name
@@ -253,6 +256,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
 				}
+				log.Print("DEBUG1123123")
 				log.Print("DEBUG: ", string(body))
 				SendToOne(string(body), user, EventChannelList)
 				defer channelResponse.Body.Close()
