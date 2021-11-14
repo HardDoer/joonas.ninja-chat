@@ -136,6 +136,10 @@ func HandleChannelCommand(commands []string, user *User) {
 		var subCommand = commands[1]
 		if len(user.Token) > 0 {
 			if subCommand == "create" {
+				if (len(commands) < 3) {
+					SendToOne("No empty names!", user, EventErrorNotification)
+					return
+				}
 				var parameter1 = commands[2]
 				var parameter2 = false
 				if len(commands) >= 4 && commands[3] == "private" {
