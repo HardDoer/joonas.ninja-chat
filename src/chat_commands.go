@@ -240,7 +240,7 @@ func HandleChannelCommand(commands []string, user *User) {
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
 					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				log.Print("DEBUG: ", body)
+				log.Print("DEBUG: ", string(body))
 				SendToOne(string(body), user, EventChannelList)
 				defer channelResponse.Body.Close()
 			} else if subCommand == "default" {
