@@ -226,13 +226,27 @@ func HandleChannelCommand(commands []string, user *User) {
 			} else if subCommand == "list" {
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token})
-				req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
+				req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
+				if err != nil {
+					log.Print("VIRHE1")
+					log.Print("VIRHE?: ", err)
+					log.Print("HandleChannelCommand():", err)
+					// Palauta joku virhe
+				}
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
+				if err != nil {
+					log.Print("VIRHE2")
+					log.Print("VIRHE?: ", err)
+					log.Print("HandleChannelCommand():", err)
+					// Palauta joku virhe
+				}
 				body, err := ioutil.ReadAll(channelResponse.Body)
 				if err != nil {
+					log.Print("VIRHE3")
+					log.Print("VIRHE?: ", err)
 					log.Print("HandleChannelCommand():", err)
 					// Palauta joku virhe
 				}
