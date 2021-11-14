@@ -227,7 +227,6 @@ func HandleChannelCommand(commands []string, user *User) {
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token})
 				req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
-				log.Print("DEBUG: ", user.Token)
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
