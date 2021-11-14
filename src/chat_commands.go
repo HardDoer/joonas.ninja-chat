@@ -197,8 +197,18 @@ func HandleChannelCommand(commands []string, user *User) {
 				var readResponse channelReadResponse
 				log.Print("DEBUG1")
 				client := &http.Client{}
-				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
-				req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
+				jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
+				if err != nil {
+					log.Print("HandleChannelCommand():", err)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+					return
+				}
+				req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
+				if err != nil {
+					log.Print("HandleChannelCommand():", err)
+					SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+					return
+				}
 				req.Header.Add("Content-Type", "application/json")
 				req.Header.Add("Authorization", `Basic `+
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
