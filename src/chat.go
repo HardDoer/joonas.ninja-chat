@@ -104,7 +104,7 @@ func SendToOther(body string, user *User, eventType string) {
 }
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
-	log.Print("chatRequest():", "Connection opened.")
+	log.Print("newChatConnection():", "Connection opened.")
 	var validationRes tokenValidationRes
 	var err error
 	var newUser User
@@ -121,6 +121,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 			return true
 		})
 		if isClosed == true {
+			log.Print("newChatConnection(): Token already in use. Connection closed.")
 			return
 		}
 		validationRes, err = validateToken(cookie)
