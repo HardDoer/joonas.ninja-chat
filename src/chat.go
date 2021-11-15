@@ -114,7 +114,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		Users.Range(func(key, value interface{}) bool {
 			var userValue = value.(*User)
 			if len(userValue.Token) > 0 && userValue.Token == cookie {
-				newUser.Connection.Close()
+				connection.Close()
 				isClosed = true
 				return false
 			}
