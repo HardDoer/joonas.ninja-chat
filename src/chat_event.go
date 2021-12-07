@@ -33,6 +33,7 @@ type gatewayDTO struct {
 
 type tokenValidationRes struct {
 	Username string `json:"username"`
+	DefaultChannel string `json:"defaultChannel"`
 }
 
 func handleCommand(body string, user *User) {
@@ -48,6 +49,8 @@ func handleCommand(body string, user *User) {
 		HandleHelpCommand(user)
 	case CommandChannel:
 		HandleChannelCommand(splitBody, user)
+	case CommandWhereAmI:
+		HandleWhereCommand(user)
 	default:
 		SendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	}
@@ -142,7 +145,7 @@ func HandleMessageEvent(body string, user *User) error {
 			value, _ := Users.Load(user)
 			user := value.(*User)
 			senderName = user.Name
-			SendToAll(body, user.CurrentChannelId, senderName, EventMessage)
+			SendToAll(body, user.CurrentChannelId, senderName, EventMessage, true)
 		} else {
 			handleCommand(body, user)
 		}
@@ -169,7 +172,7 @@ func HandleJoin(chatUser *User) error {
 	if err := chatUser.write(websocket.TextMessage, jsonResponse); err != nil {
 		return err
 	}
-	SendToOther(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
+	SendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
 	return nil
 }
 

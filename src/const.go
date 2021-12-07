@@ -35,7 +35,12 @@ const EventHelp = "helpCommand"
 
 const EventChannelList = "channelList"
 
-// CommandWho - List users command for the chat.
+const PublicChannelName = "public"
+
+// CommandWhereAmI - What channel are you on.
+const CommandWhereAmI = "where"
+
+// CommandNick - Set your nickname
 const CommandNameChange = "nick"
 
 // CommandWho - List users command for the chat.
