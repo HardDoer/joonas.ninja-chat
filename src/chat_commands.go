@@ -53,7 +53,7 @@ func HandleHelpCommand(user *User) {
 	response = append(response, helpDTO{Desc: "This command", Name: CommandHelp})
 	response = append(response, helpDTO{Desc: "What channel are you on.", Name: CommandWhereAmI})
 	response = append(response, helpDTO{Desc: "Logged in users on this channel", Name: CommandWho})
-	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <channelName> <email>', 'create <channelName>.', 'join <channelName>' and 'list'", Name: CommandChannel})
+	response = append(response, helpDTO{Desc: "For channel operations. Available parameters are 'invite <channelName> <email>', 'create <channelName>.', 'default' that sets the current channel as your default, 'join <channelName>' and 'list'", Name: CommandChannel})
 	response = append(response, helpDTO{Desc: "Change your name. Nickname is only persistent if you are registered and logged in. Parameters: <newName>'", Name: CommandNameChange})
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
