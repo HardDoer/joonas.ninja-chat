@@ -176,15 +176,13 @@ func HandleChannelCommand(commands []string, user *User) {
 					req.Header.Add("Authorization", `Basic `+
 						base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 					channelResponse, err := client.Do(req)
-					if err != nil {
-						log.Print("HandleChannelCommand():", err)
-						// Palauta joku virhe
-					}
-					if channelResponse != nil && channelResponse.Status != "200 OK" {
+					if err != nil || (channelResponse != nil && channelResponse.Status != "200 OK") {
 						log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
+						SendToOne("Error creating channel.", user, EventErrorNotification)
+					} else {
+						SendToOne("Successfully created channel: '"+parameter1+"'. private: "+strconv.FormatBool(parameter2), user, EventNotification)
 					}
 					defer channelResponse.Body.Close()
-					SendToOne("Successfully created channel: '"+parameter1+"'. private: "+strconv.FormatBool(parameter2), user, EventNotification)
 				}
 			} else if subCommand == "invite" {
 				if len(commands) != 4 {
