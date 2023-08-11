@@ -62,7 +62,7 @@ func sendToAll(body string, channelId string, name string, eventType string, res
 		log.Print("sendToAll():", err)
 	}
 	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
+		updateChatHistory(jsonResponse)
 	}
 	Users.Range(func(key, value interface{}) bool {
 		var userValue = value.(*User)
@@ -104,7 +104,7 @@ func sendToOtherOnChannel(body string, user *User, eventType string) {
 		log.Print("sendToOtherOnChannel():", err)
 	}
 	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
+		updateChatHistory(jsonResponse)
 	}
 	Users.Range(func(key, value interface{}) bool {
 		userValue := value.(*User)
@@ -126,7 +126,7 @@ func sendToOtherEverywhere(body string, user *User, eventType string) {
 		log.Print("sendToOtherEverywhere():", err)
 	}
 	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
+		updateChatHistory(jsonResponse)
 	}
 	Users.Range(func(key, value interface{}) bool {
 		userValue := value.(*User)

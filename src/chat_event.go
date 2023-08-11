@@ -119,7 +119,7 @@ func HandleMessageEvent(body string, user *User) error {
 // HandleJoin -
 func HandleJoin(chatUser *User) error {
 	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
-	chatHistory := GetChatHistory(chatUser.CurrentChannelId)
+	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
 			return err
