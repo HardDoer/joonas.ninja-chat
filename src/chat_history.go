@@ -4,7 +4,7 @@ import (
 	"log"
 )
 
-func chatHistoryConstructor(response any) any {
+func newChatHistory(response any) any {
 	// TODO. Tsekkaa toi tyyppi???
 	return chatHistory{Event: EventChatHistory, Body: response.([]EventData), UserCount: UserCount}
 }
@@ -27,5 +27,5 @@ func getChatHistory(channelId string) []byte {
 		return nil
 	}
 	var historyArray []EventData
-	return buildJsonResponse(res, historyArray, chatHistoryConstructor)
+	return buildJsonResponse(res, historyArray, newChatHistory)
 }

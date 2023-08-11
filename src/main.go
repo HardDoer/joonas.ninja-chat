@@ -31,16 +31,19 @@ func initRoutes() {
 	log.Print("initRoutes():", "Routes initialized.")
 }
 
-type structConstructorFn func(response any) any
+type responseParserFn func(response any) any
 
-func buildJsonResponse(res []byte, castObject any, responseConstructor structConstructorFn) [] byte {
+/*
+Unmarshals a json response and parses it further if the responseConstructor parameter is provided.
+*/
+func buildJsonResponse(res []byte, castObject any, responseParser responseParserFn) [] byte {
 	err := json.Unmarshal(res, &castObject)
 	if err != nil {
 		log.Print("buildJsonResponse():", err)
 		return nil
 	}
-	if (responseConstructor != nil) {
-		response := responseConstructor(castObject)
+	if (responseParser != nil) {
+		response := responseParser(castObject)
 		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			log.Print("buildJsonResponse():", err)
