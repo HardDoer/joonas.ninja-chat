@@ -47,6 +47,11 @@ type channelReadResponse struct {
 	Admin   string `json:"admin"`
 }
 
+type apiRequestOptions struct {
+	payload     []byte
+	queryString string
+}
+
 type responseFn func()
 
 // HandleHelpCommand - dibadaba
@@ -78,10 +83,17 @@ func HandleWhereCommand(user *User) {
 	}
 }
 
-func ApiRequest(user *User, method string, body string, env string, successCallback responseFn, errorCallback responseFn) {
+func ApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, errorCallback responseFn) {
 	client := &http.Client{}
-	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
-	req, _ := http.NewRequest(method, os.Getenv(env), bytes.NewBuffer(jsonResponse))
+	url := os.Getenv(env)
+	var payload *bytes.Buffer
+	if len(requestOptions.queryString) > 0 {
+		url += requestOptions.queryString
+	}
+	if requestOptions.payload != nil {
+		payload = bytes.NewBuffer(requestOptions.payload)
+	}
+	req, err := http.NewRequest(method, url, payload)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
@@ -92,15 +104,20 @@ func ApiRequest(user *User, method string, body string, env string, successCallb
 	}
 	if apiResponse != nil && apiResponse.Status != "200 OK" {
 		log.Print("ApiRequest():", "Error response "+apiResponse.Status)
-		errorCallback()
+		if errorCallback != nil {
+			errorCallback()
+		}
 		return
 	}
-	successCallback()
+	if successCallback != nil {
+		successCallback()
+	}
 	defer apiResponse.Body.Close()
 }
 
 func ChangeNameRequest(user *User, method string, body string, errorCallback responseFn) {
-	ApiRequest(user, method, body, "CHAT_CHANGE_NICKNAME", func() {
+	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
+	ApiRequest(method, apiRequestOptions{payload: jsonResponse}, "CHAT_CHANGE_NICKNAME", func() {
 		originalName := user.Name
 		user.Name = body
 		Users.Store(user, user)

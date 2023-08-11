@@ -33,6 +33,7 @@ func UpdateChatHistory(jsonResponse []byte) {
 	if err != nil {
 		log.Print("updateChatHistory():", err)
 	}
+	ApiRequest()
 	defer historyResponse.Body.Close()
 }
 
