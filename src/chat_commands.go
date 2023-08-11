@@ -76,6 +76,24 @@ func HandleWhereCommand(user *User) {
 	}
 }
 
+func ApiRequest(user *User, method string, body string, env string) (*http.Response, error) {
+	client := &http.Client{}
+	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
+	req, _ := http.NewRequest(method, os.Getenv(env), bytes.NewBuffer(jsonResponse))
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", `Basic `+
+		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
+	apiResponse, err := client.Do(req)
+	if err != nil {
+		log.Print("ApiRequest():", err)
+	}
+	if apiResponse != nil && apiResponse.Status != "200 OK" {
+		log.Print("ApiRequest():", "Error response "+apiResponse.Status)
+	}
+	defer apiResponse.Body.Close()
+	return apiResponse, err
+}
+
 func HandleNameChangeCommand(splitBody []string, user *User) error {
 	if len(splitBody) < 2 {
 		return nil

@@ -66,7 +66,7 @@ func SendToAll(body string, channelId string, name string, eventType string, res
 	}
 	Users.Range(func(key, value interface{}) bool {
 		var userValue = value.(*User)
-		if (restrictToChannel) {
+		if restrictToChannel {
 			if userValue.CurrentChannelId == channelId {
 				if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
 					log.Print("sendToAll():", err)
@@ -116,6 +116,7 @@ func SendToOtherOnChannel(body string, user *User, eventType string) {
 		return true
 	})
 }
+
 // SendToOtherEverywhere - sends the body string data to all connected clients except the parameter given client
 func SendToOtherEverywhere(body string, user *User, eventType string) {
 	log.Print("SendToOtherEverywhere():", body)
@@ -174,7 +175,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
-	SendToOtherEverywhere(newUser.Name + " has connected.", &newUser, EventNotification)
+	SendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification)
 	err = HandleJoin(&newUser)
 	if err != nil {
 		connection.Close()
