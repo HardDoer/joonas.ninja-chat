@@ -1,13 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 )
 
 type chatHistory struct {
@@ -18,48 +13,17 @@ type chatHistory struct {
 
 // UpdateChatHistory - Adds the parameter defined chat history entry to chat history
 func UpdateChatHistory(jsonResponse []byte) {
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("CHAT_HISTORY_URL"), bytes.NewBuffer(jsonResponse))
-	if err != nil {
-		log.Print("updateChatHistory():", err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-	historyResponse, err := client.Do(req)
-	if historyResponse != nil && historyResponse.Status != "200 OK" {
-		log.Print("updateChatHistory():", "Error response "+historyResponse.Status)
-	}
-	if err != nil {
-		log.Print("updateChatHistory():", err)
-	}
-	ApiRequest()
-	defer historyResponse.Body.Close()
+	apiRequest("POST", apiRequestOptions{payload: jsonResponse}, "CHAT_HISTORY_URL", nil, nil)
 }
 
-// GetChatHistory - Returns the entire chat history.
 func GetChatHistory(channelId string) []byte {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", os.Getenv("CHAT_HISTORY_URL") + "?channelId=" + channelId, nil)
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-	historyResponse, err := client.Do(req)
-	if historyResponse != nil && historyResponse.Status != "200 OK" {
-		log.Print("getChatHistory():", "Error response "+historyResponse.Status)
-		return nil
-	}
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return nil
-	}
-	defer historyResponse.Body.Close()
-	body, err := ioutil.ReadAll(historyResponse.Body)
+	res, err := apiRequest("GET", apiRequestOptions{queryString: "?channelId=" + channelId}, "CHAT_HISTORY_URL", nil, nil)
 	if err != nil {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
 	var historyArray []EventData
-	err = json.Unmarshal(body, &historyArray)
+	err = json.Unmarshal(res, &historyArray)
 	if err != nil {
 		log.Print("getChatHistory():", err)
 		return nil

@@ -52,10 +52,10 @@ type apiRequestOptions struct {
 	queryString string
 }
 
-type responseFn func()
+type responseFn func([]byte) []byte
 
-// HandleHelpCommand - dibadaba
-func HandleHelpCommand(user *User) {
+// handleHelpCommand - dibadaba
+func handleHelpCommand(user *User) {
 	var response []helpDTO
 	response = append(response, helpDTO{Desc: "This command", Name: CommandHelp})
 	response = append(response, helpDTO{Desc: "What channel are you on.", Name: CommandWhereAmI})
@@ -66,10 +66,10 @@ func HandleHelpCommand(user *User) {
 	if err != nil {
 		return
 	}
-	SendToOne(string(jsonResponse), user, EventHelp)
+	sendToOne(string(jsonResponse), user, EventHelp)
 }
 
-func HandleWhereCommand(user *User) {
+func handleWhereCommand(user *User) {
 	if len(user.Token) > 0 {
 		var currentChannelId string
 		if user.CurrentChannelId == "" {
@@ -77,98 +77,71 @@ func HandleWhereCommand(user *User) {
 		} else {
 			currentChannelId = user.CurrentChannelId
 		}
-		SendToOne("You are currently on channel '"+currentChannelId+"'", user, EventNotification)
+		sendToOne("You are currently on channel '"+currentChannelId+"'", user, EventNotification)
 	} else {
-		ReplyMustBeLoggedIn(user)
+		replyMustBeLoggedIn(user)
 	}
 }
 
-func ApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, errorCallback responseFn) {
-	client := &http.Client{}
-	url := os.Getenv(env)
-	var payload *bytes.Buffer
-	if len(requestOptions.queryString) > 0 {
-		url += requestOptions.queryString
-	}
-	if requestOptions.payload != nil {
-		payload = bytes.NewBuffer(requestOptions.payload)
-	}
-	req, err := http.NewRequest(method, url, payload)
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-	apiResponse, err := client.Do(req)
-	if err != nil {
-		log.Print("ApiRequest():", err)
-		return
-	}
-	if apiResponse != nil && apiResponse.Status != "200 OK" {
-		log.Print("ApiRequest():", "Error response "+apiResponse.Status)
-		if errorCallback != nil {
-			errorCallback()
-		}
-		return
-	}
-	if successCallback != nil {
-		successCallback()
-	}
-	defer apiResponse.Body.Close()
-}
-
-func ChangeNameRequest(user *User, method string, body string, errorCallback responseFn) {
+func changeNameRequest(user *User, method string, body string, expectedErrorCallback responseFn) error {
 	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
-	ApiRequest(method, apiRequestOptions{payload: jsonResponse}, "CHAT_CHANGE_NICKNAME", func() {
+	_, err := apiRequest(method, apiRequestOptions{payload: jsonResponse}, "CHAT_CHANGE_NICKNAME", func(response []byte) []byte {
 		originalName := user.Name
 		user.Name = body
 		Users.Store(user, user)
-		SendToOne(body, user, EventNameChange)
-		SendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification)
-	}, errorCallback)
+		sendToOne(body, user, EventNameChange)
+		sendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification)
+		return nil
+	}, expectedErrorCallback)
+	return err
 }
 
-func HandleNameChangeCommand(splitBody []string, user *User) error {
+func handleNameChangeCommand(splitBody []string, user *User) error {
 	if len(splitBody) < 2 {
 		return nil
 	}
 	var body = splitBody[1]
+	var err error
 
 	if len(body) <= 64 && len(body) >= 1 {
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
-			SendToOne("No empty names!", user, EventErrorNotification)
+			sendToOne("No empty names!", user, EventErrorNotification)
 			return nil
 		}
 		key, _ := Users.Load(user)
 		user := key.(*User)
-		log.Println("HandleNameChangeCommand(): User " + user.Name + " is changing name.")
+		log.Println("handleNameChangeCommand(): User " + user.Name + " is changing name.")
 		if user.Name == body {
-			SendToOne("You already have that nickname.", user, EventErrorNotification)
+			sendToOne("You already have that nickname.", user, EventErrorNotification)
 			return nil
 		}
 		if len(user.Token) > 0 {
-			ChangeNameRequest(user, "PUT", body, func() {
-				SendToOne("Names must be unique.", user, EventErrorNotification)
+			err = changeNameRequest(user, "PUT", body, func(response []byte) []byte {
+				sendToOne("Names must be unique.", user, EventErrorNotification)
+				return nil
 			})
 		} else {
-			ChangeNameRequest(user, "POST", body, func() {
-				SendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventErrorNotification)
+			err = changeNameRequest(user, "POST", body, func(response []byte) []byte {
+				sendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventErrorNotification)
+				return nil
 			})
 		}
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
 		log.Println("New name is too long or too short")
 	}
-	return nil
+	return err
 }
 
-// HandleChannelCommand - dibadaba
-func HandleChannelCommand(commands []string, user *User) {
+// handleChannelCommand - dibadaba
+func handleChannelCommand(commands []string, user *User) {
 	if len(commands) >= 2 {
 		var subCommand = commands[1]
 		if len(user.Token) > 0 {
 			if subCommand == "create" {
 				if len(commands) < 3 {
-					SendToOne("No empty names!", user, EventErrorNotification)
+					sendToOne("No empty names!", user, EventErrorNotification)
 					return
 				}
 				var parameter1 = commands[2]
@@ -178,11 +151,11 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 				parameter1 = strings.ReplaceAll(parameter1, " ", "")
 				if parameter1 == "" {
-					SendToOne("No empty names!", user, EventErrorNotification)
+					sendToOne("No empty names!", user, EventErrorNotification)
 					return
 				}
 				if parameter1 == PublicChannelName {
-					SendToOne("That is a reserved name. Try a different name for your channel.", user, EventErrorNotification)
+					sendToOne("That is a reserved name. Try a different name for your channel.", user, EventErrorNotification)
 				}
 				if len(parameter1) <= 16 {
 					client := &http.Client{}
@@ -193,16 +166,16 @@ func HandleChannelCommand(commands []string, user *User) {
 						base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 					channelResponse, err := client.Do(req)
 					if err != nil || (channelResponse != nil && channelResponse.Status != "200 OK") {
-						log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
-						SendToOne("Error creating channel.", user, EventErrorNotification)
+						log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
+						sendToOne("Error creating channel.", user, EventErrorNotification)
 					} else {
-						SendToOne("Successfully created channel: '"+parameter1+"'. private: "+strconv.FormatBool(parameter2), user, EventNotification)
+						sendToOne("Successfully created channel: '"+parameter1+"'. private: "+strconv.FormatBool(parameter2), user, EventNotification)
 					}
 					defer channelResponse.Body.Close()
 				}
 			} else if subCommand == "invite" {
 				if len(commands) != 4 {
-					SendToOne("Insufficient parameters.", user, EventErrorNotification)
+					sendToOne("Insufficient parameters.", user, EventErrorNotification)
 					return
 				}
 				var parameter1 = commands[2]
@@ -215,22 +188,22 @@ func HandleChannelCommand(commands []string, user *User) {
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
+					log.Print("handleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
-					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
+					log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
 				}
 				defer channelResponse.Body.Close()
-				SendToOne("Invite sent successfully to: "+parameter2, user, EventNotification)
+				sendToOne("Invite sent successfully to: "+parameter2, user, EventNotification)
 			} else if subCommand == "join" {
 				if len(commands) != 3 {
-					NotEnoughParameters(user)
+					notEnoughParameters(user)
 					return
 				}
 				var parameter1 = commands[2]
 				var readResponse channelReadResponse
-				SendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification)
+				sendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification)
 				client := &http.Client{}
 				if len(parameter1) < 1 || parameter1 == PublicChannelName {
 					user.CurrentChannelId = ""
@@ -238,14 +211,14 @@ func HandleChannelCommand(commands []string, user *User) {
 				} else {
 					jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
 					if err != nil {
-						log.Print("HandleChannelCommand():", err)
-						SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+						log.Print("handleChannelCommand():", err)
+						sendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 						return
 					}
 					req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
 					if err != nil {
-						log.Print("HandleChannelCommand():", err)
-						SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+						log.Print("handleChannelCommand():", err)
+						sendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 						return
 					}
 					req.Header.Add("Content-Type", "application/json")
@@ -253,19 +226,19 @@ func HandleChannelCommand(commands []string, user *User) {
 						base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 					channelResponse, err := client.Do(req)
 					if err != nil {
-						log.Print("HandleChannelCommand():", err)
-						SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+						log.Print("handleChannelCommand():", err)
+						sendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 						return
 					}
 					if channelResponse != nil && channelResponse.Status != "200 OK" {
-						log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
-						SendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
+						log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
+						sendToOne("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
 						return
 					}
 					defer channelResponse.Body.Close()
 					body, err := ioutil.ReadAll(channelResponse.Body)
 					if err != nil {
-						log.Print("HandleChannelCommand():", err)
+						log.Print("handleChannelCommand():", err)
 						return
 					}
 					_ = json.Unmarshal(body, &readResponse)
@@ -273,17 +246,17 @@ func HandleChannelCommand(commands []string, user *User) {
 				}
 				err := HandleJoin(user)
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
-					SendToOne("Error joining channel", user, EventErrorNotification)
+					log.Print("handleChannelCommand():", err)
+					sendToOne("Error joining channel", user, EventErrorNotification)
 					return
 				}
-				SendToOne("Succesfully joined channel '"+parameter1+"'", user, EventNotification)
+				sendToOne("Succesfully joined channel '"+parameter1+"'", user, EventNotification)
 			} else if subCommand == "list" {
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token})
 				req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
+					log.Print("handleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				req.Header.Add("Content-Type", "application/json")
@@ -291,22 +264,22 @@ func HandleChannelCommand(commands []string, user *User) {
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
+					log.Print("handleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				body, err := ioutil.ReadAll(channelResponse.Body)
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
+					log.Print("handleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
-					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
+					log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				SendToOne(string(body), user, EventChannelList)
+				sendToOne(string(body), user, EventChannelList)
 				defer channelResponse.Body.Close()
 			} else if subCommand == "default" {
 				if len(user.CurrentChannelId) == 0 {
-					SendToOne("You are currently on the 'public' channel which does not need to be set as default.", user, EventErrorNotification)
+					sendToOne("You are currently on the 'public' channel which does not need to be set as default.", user, EventErrorNotification)
 					return
 				}
 				client := &http.Client{}
@@ -317,20 +290,20 @@ func HandleChannelCommand(commands []string, user *User) {
 					base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 				channelResponse, err := client.Do(req)
 				if err != nil {
-					log.Print("HandleChannelCommand():", err)
+					log.Print("handleChannelCommand():", err)
 					// Palauta joku virhe
 				}
 				if channelResponse != nil && channelResponse.Status != "200 OK" {
-					log.Print("HandleChannelCommand():", "Error response "+channelResponse.Status)
+					log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
 				}
-				SendToOne("Successfully set channel: '"+user.CurrentChannelId+"' as your default channel.", user, EventNotification)
+				sendToOne("Successfully set channel: '"+user.CurrentChannelId+"' as your default channel.", user, EventNotification)
 				defer channelResponse.Body.Close()
 			}
 		} else {
-			ReplyMustBeLoggedIn(user)
+			replyMustBeLoggedIn(user)
 		}
 	} else {
-		NotEnoughParameters(user)
+		notEnoughParameters(user)
 	}
 }
 
@@ -339,8 +312,8 @@ func HandleUserCommand(commands []string, connection *websocket.Conn) {
 
 }
 
-// HandleWhoCommand - who is present in the current channel
-func HandleWhoCommand(user *User) {
+// handleWhoCommand - who is present in the current channel
+func handleWhoCommand(user *User) {
 	var whoIsHere []string
 	Users.Range(func(key, value interface{}) bool {
 		v := value.(*User)
@@ -351,9 +324,9 @@ func HandleWhoCommand(user *User) {
 	})
 	jsonResponse, err := json.Marshal(whoIsHere)
 	if err != nil {
-		log.Printf("HandleWhoCommand(): ")
+		log.Printf("handleWhoCommand(): ")
 		log.Println(err)
 		return
 	}
-	SendToOne(string(jsonResponse), user, EventWho)
+	sendToOne(string(jsonResponse), user, EventWho)
 }

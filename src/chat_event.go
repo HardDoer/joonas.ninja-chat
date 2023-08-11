@@ -32,7 +32,7 @@ type gatewayDTO struct {
 }
 
 type tokenValidationRes struct {
-	Username string `json:"username"`
+	Username       string `json:"username"`
 	DefaultChannel string `json:"defaultChannel"`
 }
 
@@ -40,75 +40,35 @@ func handleCommand(body string, user *User) {
 	var splitBody = strings.Split(body, "/")
 	splitBody = strings.Split(splitBody[1], " ")
 	command := splitBody[0]
+	// TODO. Mappiin nämä ja errori palautetaan.
 	switch command {
 	case CommandWho:
-		HandleWhoCommand(user)
+		handleWhoCommand(user)
 	case CommandNameChange:
-		HandleNameChangeCommand(splitBody, user)
+		handleNameChangeCommand(splitBody, user)
 	case CommandHelp:
-		HandleHelpCommand(user)
+		handleHelpCommand(user)
 	case CommandChannel:
-		HandleChannelCommand(splitBody, user)
+		handleChannelCommand(splitBody, user)
 	case CommandWhereAmI:
-		HandleWhereCommand(user)
+		handleWhereCommand(user)
 	default:
-		SendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
+		sendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	}
 }
 
-func validateToken(token string) (validationRes tokenValidationRes, err error) {
-	chatTokenRequest := gatewayDTO{Token: token}
-	jsonResponse, err := json.Marshal(chatTokenRequest)
-	var tokenJson tokenValidationRes
-
-	if err != nil {
-		log.Print("validateToken():", err)
-		return tokenJson, err
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("CHAT_TOKEN_URL"), bytes.NewBuffer(jsonResponse))
-	if err != nil {
-		log.Print("validateToken():", err)
-		return tokenJson, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
-	tokenResponse, err := client.Do(req)
-	if err != nil {
-		log.Print("validateToken():", err)
-		return tokenJson, err
-	}
-	if tokenResponse != nil && tokenResponse.Status != "200 OK" {
-		log.Print("validateToken():", "Error response "+tokenResponse.Status)
-		return tokenJson, errors.New("Error response " + tokenResponse.Status)
-	}
-	defer tokenResponse.Body.Close()
-	body, err := ioutil.ReadAll(tokenResponse.Body)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return tokenJson, err
-	}
-	err = json.Unmarshal(body, &tokenJson)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return tokenJson, err
-	}
-	return tokenJson, nil
-}
-
-func loginRequest(email string, password string) (res gatewayDTO, err error) {
+func apiLoginRequest(email string, password string) (res gatewayDTO, err error) {
 	var gatewayRes gatewayDTO
-	chatLoginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
-	jsonResponse, err := json.Marshal(chatLoginRequest)
+	chatloginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
+	jsonResponse, err := json.Marshal(chatloginRequest)
 	if err != nil {
-		log.Print("loginRequest():", err)
+		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
 	}
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", os.Getenv("CHAT_LOGIN_URL"), bytes.NewBuffer(jsonResponse))
 	if err != nil {
-		log.Print("loginRequest():", err)
+		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
 	}
 	req.Header.Add("Content-Type", "application/json")
@@ -116,22 +76,22 @@ func loginRequest(email string, password string) (res gatewayDTO, err error) {
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
 	loginResponse, err := client.Do(req)
 	if err != nil {
-		log.Print("loginRequest():", err)
+		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
 	}
 	if loginResponse != nil && loginResponse.Status != "200 OK" {
-		log.Print("loginRequest():", "Error response "+loginResponse.Status)
+		log.Print("apiLoginRequest():", "Error response "+loginResponse.Status)
 		return gatewayRes, errors.New("Error response " + loginResponse.Status)
 	}
 	defer loginResponse.Body.Close()
 	body, err := ioutil.ReadAll(loginResponse.Body)
 	if err != nil {
-		log.Print("loginRequest():", err)
+		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
 	}
 	err = json.Unmarshal(body, &gatewayRes)
 	if err != nil {
-		log.Print("loginRequest():", err)
+		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
 	}
 	return gatewayRes, nil
@@ -145,7 +105,7 @@ func HandleMessageEvent(body string, user *User) error {
 			value, _ := Users.Load(user)
 			user := value.(*User)
 			senderName = user.Name
-			SendToAll(body, user.CurrentChannelId, senderName, EventMessage, true)
+			sendToAll(body, user.CurrentChannelId, senderName, EventMessage, true)
 		} else {
 			handleCommand(body, user)
 		}
@@ -172,7 +132,7 @@ func HandleJoin(chatUser *User) error {
 	if err := chatUser.write(websocket.TextMessage, jsonResponse); err != nil {
 		return err
 	}
-	SendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
+	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
 	return nil
 }
 

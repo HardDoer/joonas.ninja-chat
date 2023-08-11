@@ -18,7 +18,7 @@ func chatHistoryTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func testSetup(t *testing.T) (*websocket.Conn, *httptest.Server) {
-	server := httptest.NewServer(http.HandlerFunc(ChatRequest))
+	server := httptest.NewServer(http.HandlerFunc(chatRequest))
 	url := "ws" + strings.TrimPrefix(server.URL, "http")
 	ws, _, err := websocket.DefaultDialer.Dial(url, nil)
 	assert.Nil(t, err)
