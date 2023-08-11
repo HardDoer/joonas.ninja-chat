@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -28,6 +29,26 @@ func initRoutes() {
 	http.HandleFunc("/api/v1/ws/chat", chatRequest)
 	http.HandleFunc("/api/v1/http/chat/login", loginRequest)
 	log.Print("initRoutes():", "Routes initialized.")
+}
+
+type structConstructorFn func(response any) any
+
+func buildJsonResponse(res []byte, castObject any, responseConstructor structConstructorFn) [] byte {
+	err := json.Unmarshal(res, &castObject)
+	if err != nil {
+		log.Print("buildJsonResponse():", err)
+		return nil
+	}
+	if (responseConstructor != nil) {
+		response := responseConstructor(castObject)
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			log.Print("buildJsonResponse():", err)
+			return nil
+		}
+		return jsonResponse
+	}
+	return nil
 }
 
 func heartbeat(user *User) {

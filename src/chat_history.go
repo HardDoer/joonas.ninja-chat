@@ -1,9 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 )
+
+func chatHistoryConstructor(response any) any {
+	// TODO. Tsekkaa toi tyyppi???
+	return chatHistory{Event: EventChatHistory, Body: response.([]EventData), UserCount: UserCount}
+}
 
 type chatHistory struct {
 	Body      []EventData `json:"history"`
@@ -23,16 +27,5 @@ func getChatHistory(channelId string) []byte {
 		return nil
 	}
 	var historyArray []EventData
-	err = json.Unmarshal(res, &historyArray)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return nil
-	}
-	response := chatHistory{Event: EventChatHistory, Body: historyArray, UserCount: UserCount}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return nil
-	}
-	return jsonResponse
+	return buildJsonResponse(res, historyArray, chatHistoryConstructor)
 }
