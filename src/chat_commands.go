@@ -47,6 +47,8 @@ type channelReadResponse struct {
 	Admin   string `json:"admin"`
 }
 
+type responseFn func()
+
 // HandleHelpCommand - dibadaba
 func HandleHelpCommand(user *User) {
 	var response []helpDTO
@@ -76,7 +78,7 @@ func HandleWhereCommand(user *User) {
 	}
 }
 
-func ApiRequest(user *User, method string, body string, env string) (*http.Response, error) {
+func ApiRequest(user *User, method string, body string, env string, successCallback responseFn, errorCallback responseFn) {
 	client := &http.Client{}
 	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
 	req, _ := http.NewRequest(method, os.Getenv(env), bytes.NewBuffer(jsonResponse))
@@ -86,12 +88,25 @@ func ApiRequest(user *User, method string, body string, env string) (*http.Respo
 	apiResponse, err := client.Do(req)
 	if err != nil {
 		log.Print("ApiRequest():", err)
+		return
 	}
 	if apiResponse != nil && apiResponse.Status != "200 OK" {
 		log.Print("ApiRequest():", "Error response "+apiResponse.Status)
+		errorCallback()
+		return
 	}
+	successCallback()
 	defer apiResponse.Body.Close()
-	return apiResponse, err
+}
+
+func ChangeNameRequest(user *User, method string, body string, errorCallback responseFn) {
+	ApiRequest(user, method, body, "CHAT_CHANGE_NICKNAME", func() {
+		originalName := user.Name
+		user.Name = body
+		Users.Store(user, user)
+		SendToOne(body, user, EventNameChange)
+		SendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification)
+	}, errorCallback)
 }
 
 func HandleNameChangeCommand(splitBody []string, user *User) error {
@@ -101,7 +116,6 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 	var body = splitBody[1]
 
 	if len(body) <= 64 && len(body) >= 1 {
-		var originalName string
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
 			SendToOne("No empty names!", user, EventErrorNotification)
@@ -115,47 +129,14 @@ func HandleNameChangeCommand(splitBody []string, user *User) error {
 			return nil
 		}
 		if len(user.Token) > 0 {
-			client := &http.Client{}
-			jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
-			req, _ := http.NewRequest("PUT", os.Getenv("CHAT_CHANGE_NICKNAME"), bytes.NewBuffer(jsonResponse))
-			req.Header.Add("Content-Type", "application/json")
-			req.Header.Add("Authorization", `Basic `+
-				base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-			changeNameResponse, err := client.Do(req)
-			if err != nil {
-				log.Print("HandleNameChangeCommand():", err)
-				return err
-			}
-			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
-				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
+			ChangeNameRequest(user, "PUT", body, func() {
 				SendToOne("Names must be unique.", user, EventErrorNotification)
-				return nil
-			}
-			defer changeNameResponse.Body.Close()
+			})
 		} else {
-			client := &http.Client{}
-			jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body})
-			req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHECK_NICKNAME"), bytes.NewBuffer(jsonResponse))
-			req.Header.Add("Content-Type", "application/json")
-			req.Header.Add("Authorization", `Basic `+
-				base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-			changeNameResponse, err := client.Do(req)
-			if err != nil {
-				log.Print("HandleNameChangeCommand():", err)
-				return err
-			}
-			if changeNameResponse != nil && changeNameResponse.Status != "200 OK" {
-				log.Print("HandleNameChangeCommand():", "Error response "+changeNameResponse.Status)
+			ChangeNameRequest(user, "POST", body, func() {
 				SendToOne("Name reserved by registered user. Register to reserve nicknames.", user, EventErrorNotification)
-				return nil
-			}
-			defer changeNameResponse.Body.Close()
+			})
 		}
-		originalName = user.Name
-		user.Name = body
-		Users.Store(user, user)
-		SendToOne(body, user, EventNameChange)
-		SendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification)
 	} else {
 		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
 		log.Println("New name is too long or too short")
