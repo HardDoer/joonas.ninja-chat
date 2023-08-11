@@ -176,7 +176,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
 	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification)
-	err = HandleJoin(&newUser)
+	err = handleJoin(&newUser)
 	if err != nil {
 		connection.Close()
 		removeUser(&newUser)
@@ -218,7 +218,7 @@ func reader(user *User) {
 			case EventTyping:
 				readerError = HandleTypingEvent(EventData.Body, user)
 			case EventMessage:
-				readerError = HandleMessageEvent(EventData.Body, user)
+				readerError = handleMessageEvent(EventData.Body, user)
 			}
 			if readerError != nil {
 				return

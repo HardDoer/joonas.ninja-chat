@@ -1,17 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 	"strings"
 	"time"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -57,48 +50,8 @@ func handleCommand(body string, user *User) {
 	}
 }
 
-func apiLoginRequest(email string, password string) (res gatewayDTO, err error) {
-	var gatewayRes gatewayDTO
-	chatloginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
-	jsonResponse, err := json.Marshal(chatloginRequest)
-	if err != nil {
-		log.Print("apiLoginRequest():", err)
-		return gatewayRes, err
-	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("CHAT_LOGIN_URL"), bytes.NewBuffer(jsonResponse))
-	if err != nil {
-		log.Print("apiLoginRequest():", err)
-		return gatewayRes, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
-	loginResponse, err := client.Do(req)
-	if err != nil {
-		log.Print("apiLoginRequest():", err)
-		return gatewayRes, err
-	}
-	if loginResponse != nil && loginResponse.Status != "200 OK" {
-		log.Print("apiLoginRequest():", "Error response "+loginResponse.Status)
-		return gatewayRes, errors.New("Error response " + loginResponse.Status)
-	}
-	defer loginResponse.Body.Close()
-	body, err := ioutil.ReadAll(loginResponse.Body)
-	if err != nil {
-		log.Print("apiLoginRequest():", err)
-		return gatewayRes, err
-	}
-	err = json.Unmarshal(body, &gatewayRes)
-	if err != nil {
-		log.Print("apiLoginRequest():", err)
-		return gatewayRes, err
-	}
-	return gatewayRes, nil
-}
-
-// HandleMessageEvent -
-func HandleMessageEvent(body string, user *User) error {
+// handleMessageEvent -
+func handleMessageEvent(body string, user *User) error {
 	var senderName = ""
 	if len(body) < 4096 {
 		if strings.Index(body, "/") != 0 {
@@ -116,8 +69,8 @@ func HandleMessageEvent(body string, user *User) error {
 	return nil
 }
 
-// HandleJoin -
-func HandleJoin(chatUser *User) error {
+// handleJoin -
+func handleJoin(chatUser *User) error {
 	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {

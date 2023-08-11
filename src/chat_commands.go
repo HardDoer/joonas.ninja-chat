@@ -244,7 +244,7 @@ func handleChannelCommand(commands []string, user *User) {
 					_ = json.Unmarshal(body, &readResponse)
 					user.CurrentChannelId = readResponse.Name
 				}
-				err := HandleJoin(user)
+				err := handleJoin(user)
 				if err != nil {
 					log.Print("handleChannelCommand():", err)
 					sendToOne("Error joining channel", user, EventErrorNotification)
