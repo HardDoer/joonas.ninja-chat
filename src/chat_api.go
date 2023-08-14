@@ -30,11 +30,11 @@ func apiRequest(method string, requestOptions apiRequestOptions, env string, suc
 	req.Header.Add("Authorization", `Basic `+
 		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 	apiResponse, err := client.Do(req)
-	defer apiResponse.Body.Close()
 	if err != nil {
 		log.Print("apiRequest():", err)
 		return nil, err
 	}
+	defer apiResponse.Body.Close()
 	responseBody, err := ioutil.ReadAll(apiResponse.Body)
 	if err != nil {
 		log.Print("apiRequest():", err)
