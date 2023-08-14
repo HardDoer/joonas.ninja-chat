@@ -48,7 +48,7 @@ func TestJoinShouldReturnErrorWhenNoChatHistory(t *testing.T) {
 		responseData.UserCount == 1 &&
 		responseData.Event == EventErrorNotification)
 }
-/*
+
 func TestJoin(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
@@ -58,7 +58,10 @@ func TestJoin(t *testing.T) {
 		ws.Close()
 		chathistoryServer.Close()
 	}()
+	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
 	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
@@ -72,13 +75,13 @@ func TestJoin(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
-	chathistoryServer := setupChatHistory()
 	defer func() {
 		server.Close()
 		ws.Close()
-		chathistoryServer.Close()
 	}()
 	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, _, err = ws.ReadMessage()
 	assert.Nil(t, err)
 	testRequest := EventData{Event: EventMessage, Body: "Testing message"}
 	jsonResponse, err := json.Marshal(testRequest)

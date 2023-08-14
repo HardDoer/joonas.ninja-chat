@@ -23,6 +23,8 @@ type EventData struct {
 	CreatedDate time.Time `json:"createdDate"`
 }
 
+type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
+
 // Users - A map containing all the connected users.
 var Users sync.Map
 
@@ -32,12 +34,6 @@ var UserCount int32
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-}
-
-func getUserName(connection *websocket.Conn) string {
-	value, _ := Users.Load(connection)
-	user := value.(*User)
-	return user.Name
 }
 
 func removeUser(user *User) {
@@ -117,8 +113,6 @@ func sendToOtherEverywhereFilter(user *User, jsonResponse []byte) func(key any, 
 		return true
 	}
 }
-
-type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
 
 // sends the body string data to a parameter defined client
 func sendOneMessage(body string, user *User, eventType string) {
