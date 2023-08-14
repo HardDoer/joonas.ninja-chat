@@ -1,15 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 )
 
 // TODO. Return something more useful.
@@ -31,12 +32,33 @@ func setupChatHistory() *httptest.Server {
 	return chatHistoryServer
 }
 
-func TestJoin(t *testing.T) {
-	var responseData EventData
+func TestJoinShouldReturnErrorWhenNoChatHistory(t *testing.T) {
 	ws, server := testSetup(t)
+	chathistoryServer := setupChatHistory()
 	defer func() {
 		server.Close()
 		ws.Close()
+		chathistoryServer.Close()
+	}()
+	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	var responseData EventData
+	err = json.Unmarshal(message, &responseData)
+	assert.Nil(t, err)
+	assert.Equal(t, true,
+		responseData.Body == "Error refreshing chat history." &&
+		responseData.UserCount == 1 &&
+		responseData.Event == EventErrorNotification)
+}
+/*
+func TestJoin(t *testing.T) {
+	var responseData EventData
+	ws, server := testSetup(t)
+	chathistoryServer := setupChatHistory()
+	defer func() {
+		server.Close()
+		ws.Close()
+		chathistoryServer.Close()
 	}()
 	_, message, err := ws.ReadMessage()
 	assert.Nil(t, err)

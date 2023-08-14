@@ -14,14 +14,19 @@ import (
 func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback responseFn) ([]byte, error) {
 	client := &http.Client{}
 	url := os.Getenv(env)
+	var req *http.Request
 	var payload *bytes.Buffer
+	var err error
+
 	if len(requestOptions.queryString) > 0 {
 		url += requestOptions.queryString
 	}
 	if requestOptions.payload != nil {
 		payload = bytes.NewBuffer(requestOptions.payload)
+		req, err = http.NewRequest(method, url, payload)
+	} else {
+		req, err = http.NewRequest(method, url, nil)
 	}
-	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
 		log.Print("apiRequest():", err)
 		return nil, err
@@ -41,11 +46,12 @@ func apiRequest(method string, requestOptions apiRequestOptions, env string, suc
 		return nil, err
 	}
 	if apiResponse != nil && apiResponse.Status != "200 OK" {
-		log.Print("apiRequest():", "Error response "+apiResponse.Status)
+		errorResponse := errors.New("Error response: " + url + " " + apiResponse.Status)
+		log.Print("apiRequest():", errorResponse)
 		if expectedErrorCallback != nil {
-			return expectedErrorCallback(responseBody), err
+			return expectedErrorCallback(responseBody), errorResponse
 		}
-		return nil, err
+		return nil, errorResponse
 	}
 	if successCallback != nil {
 		return successCallback(responseBody), err

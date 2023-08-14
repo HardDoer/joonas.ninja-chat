@@ -1,12 +1,18 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"log"
 )
 
-func newChatHistory(response any) any {
+func newChatHistory(response any) (any, error) {
 	// TODO. Tsekkaa toi tyyppi???
-	return chatHistory{Event: EventChatHistory, Body: response.([]EventData), UserCount: UserCount}
+	parsed, ok := response.([]EventData)
+	if (!ok) {
+		return nil, errors.New("cannot parse response as EventData")
+	}
+	return chatHistory{Event: EventChatHistory, Body: parsed, UserCount: UserCount}, nil
 }
 
 type chatHistory struct {
@@ -26,5 +32,10 @@ func getChatHistory(channelId string) []byte {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
-	return buildParsedJsonResponse(res, newChatHistory)
+	var eventData []EventData
+	if err := json.Unmarshal(res, &eventData); err != nil {
+		log.Print("getChatHistory():", err)
+		return nil
+	}
+	return buildParsedJson(eventData, newChatHistory)
 }

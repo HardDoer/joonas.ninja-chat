@@ -31,31 +31,27 @@ func initRoutes() {
 	log.Print("initRoutes():", "Routes initialized.")
 }
 
-type responseParserFn func(response any) any
+type responseParserFn func(response any) (any, error)
 
-/*
-Unmarshals a json response
-*/
-func unmarshalJsonResponse(res []byte) (any, error) {
-	var jsonResponse any
-	err := json.Unmarshal(res, &jsonResponse)
+func marshalJson(res any) ([]byte, error) {
+	parsedJsonResponse, err := json.Marshal(res)
 	if err != nil {
-		log.Print("buildJsonResponse():", err)
+		log.Print("marshalJsonResponse():", err)
 		return nil, err
 	}
-	return jsonResponse, err
+	return parsedJsonResponse, err
 }
 
 /*
-Unmarshals a json response and parses it further with the provided responseParser function
+Parses a struct and marshals it back to json
 */
-func buildParsedJsonResponse(res []byte, responseParser responseParserFn) []byte {
-	jsonResponse, err := unmarshalJsonResponse(res)
-	if (err != nil) {
+func buildParsedJson(json any, responseParser responseParserFn) []byte {
+	response, err := responseParser(json)
+	if err != nil {
+		log.Print("buildParsedJsonResponse():", err)
 		return nil
 	}
-	response := responseParser(jsonResponse)
-	parsedJsonResponse, err := json.Marshal(response)
+	parsedJsonResponse, err := marshalJson(response)
 	if err != nil {
 		log.Print("buildParsedJsonResponse():", err)
 		return nil

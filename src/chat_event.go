@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"strings"
 	"time"
@@ -77,8 +76,10 @@ func handleJoin(chatUser *User) error {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
 			return err
 		}
+	} else {
+		sendToOne("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}
-	jsonResponse, err := json.Marshal(response)
+	jsonResponse, err := marshalJson(response)
 	if err != nil {
 		return err
 	}
