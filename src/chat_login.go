@@ -71,5 +71,5 @@ func HandleloginRequest(email string, password string) (loginToken string, err e
 		log.Print("HandleLoginEvent():", "Login successful")
 		return responseToken, nil
 	}
-	return "", errors.New("Parameters too short")
+	return "", errors.New("parameters too short")
 }
