@@ -36,7 +36,8 @@ type responseParserFn func(response any) any
 /*
 Unmarshals a json response and parses it further if the responseConstructor parameter is provided.
 */
-func buildJsonResponse(res []byte, castObject any, responseParser responseParserFn) [] byte {
+func buildJsonResponse(res []byte, responseParser responseParserFn) [] byte {
+	var castObject any
 	err := json.Unmarshal(res, &castObject)
 	if err != nil {
 		log.Print("buildJsonResponse():", err)

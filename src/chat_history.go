@@ -26,6 +26,5 @@ func getChatHistory(channelId string) []byte {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
-	var historyArray []EventData
-	return buildJsonResponse(res, historyArray, newChatHistory)
+	return buildJsonResponse(res, newChatHistory)
 }
