@@ -70,7 +70,6 @@ func handleMessageEvent(body string, user *User) error {
 
 // handleJoin -
 func handleJoin(chatUser *User) error {
-	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
@@ -79,6 +78,7 @@ func handleJoin(chatUser *User) error {
 	} else {
 		sendToOne("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}
+	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
 	jsonResponse, err := marshalJson(response)
 	if err != nil {
 		return err
