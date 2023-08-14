@@ -82,6 +82,7 @@ func sendOneMessage(body string, user *User, eventType string) {
 func sendMultipleMessages(user *User, body string, eventType string, updateHistory bool, filterFn messageFn) {
 	log.Print("sendMultipleMessages():", body)
 	var response EventData
+	// TODO. Nimi tyhjäksi vaan suoraan kun ei tarvita niin ei tarvitse tarkistella tässä tyhmästi?
 	if (eventType == EventMessage) {
 		response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, Name: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
 	} else {
