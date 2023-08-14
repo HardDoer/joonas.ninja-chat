@@ -34,25 +34,33 @@ func initRoutes() {
 type responseParserFn func(response any) any
 
 /*
-Unmarshals a json response and parses it further if the responseConstructor parameter is provided.
+Unmarshals a json response
 */
-func buildJsonResponse(res []byte, responseParser responseParserFn) [] byte {
-	var castObject any
-	err := json.Unmarshal(res, &castObject)
+func unmarshalJsonResponse(res []byte) (any, error) {
+	var jsonResponse any
+	err := json.Unmarshal(res, &jsonResponse)
 	if err != nil {
 		log.Print("buildJsonResponse():", err)
+		return nil, err
+	}
+	return jsonResponse, err
+}
+
+/*
+Unmarshals a json response and parses it further with the provided responseParser function
+*/
+func buildParsedJsonResponse(res []byte, responseParser responseParserFn) []byte {
+	jsonResponse, err := unmarshalJsonResponse(res)
+	if (err != nil) {
 		return nil
 	}
-	if (responseParser != nil) {
-		response := responseParser(castObject)
-		jsonResponse, err := json.Marshal(response)
-		if err != nil {
-			log.Print("buildJsonResponse():", err)
-			return nil
-		}
-		return jsonResponse
+	response := responseParser(jsonResponse)
+	parsedJsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Print("buildParsedJsonResponse():", err)
+		return nil
 	}
-	return nil
+	return parsedJsonResponse
 }
 
 func heartbeat(user *User) {
