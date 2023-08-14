@@ -93,8 +93,35 @@ func TestSendMessage(t *testing.T) {
 	assert.Nil(t, readerError)
 	assert.Equal(t, true, responseData.Body == "Testing message" &&
 		responseData.UserCount == 1 &&
+		strings.HasPrefix(responseData.Name, "Anon") &&
 		responseData.Event == EventMessage,
 		"Response to a normal chatmessage should be valid.")
+}
+
+func TestErrorWhenMessageTooLong(t *testing.T) {
+	var responseData EventData
+	ws, server := testSetup(t)
+	defer func() {
+		server.Close()
+		ws.Close()
+	}()
+	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, _, err = ws.ReadMessage()
+	assert.Nil(t, err)
+	testRequest := EventData{Event: EventMessage, Body: "Testing messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting message"}
+	jsonResponse, err := json.Marshal(testRequest)
+	assert.Nil(t, err)
+	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))
+	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	readerError := json.Unmarshal(message, &responseData)
+	assert.Nil(t, readerError)
+	assert.Equal(t, true, responseData.Body == "Message is too long." &&
+		responseData.UserCount == 1 &&
+		responseData.Name == "" &&
+		responseData.Event == EventErrorNotification,
+		"Error happens when chat message is too long.")
 }
 
 /*
