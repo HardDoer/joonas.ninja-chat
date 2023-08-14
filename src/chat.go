@@ -46,43 +46,82 @@ func removeUser(user *User) {
 }
 
 func replyMustBeLoggedIn(user *User) {
-	sendToOne("Must be logged in for that command to work.", user, EventErrorNotification)
+	sendOneMessage("Must be logged in for that command to work.", user, EventErrorNotification)
 }
 
 func notEnoughParameters(user *User) {
-	sendToOne("Not enough parameters. See '/help'", user, EventErrorNotification)
+	sendOneMessage("Not enough parameters. See '/help'", user, EventErrorNotification)
 }
 
-// sendToAll - sends the body string data to all connected clients
-func sendToAll(body string, channelId string, name string, eventType string, restrictToChannel bool) {
-	log.Println("sendToAll(): " + body)
-	response := EventData{Event: eventType, ChannelId: channelId, Body: body, UserCount: UserCount, Name: name, CreatedDate: time.Now()}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("sendToAll():", err)
-	}
-	if eventType == EventMessage {
-		updateChatHistory(jsonResponse)
-	}
-	Users.Range(func(key, value interface{}) bool {
+func sendToOtherEverywhere(body string, user *User, eventType string, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, updateHistory, sendToOtherEverywhereFilter)
+}
+
+func sendToOtherOnChannel(body string, user *User, eventType string, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, updateHistory, sendToOtherOnChannelFilter)
+}
+
+func sendToAllOnChannel(body string, user *User, eventType string, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, updateHistory, sendToAllOnChannelFilter)
+}
+
+func sendToAll(body string, user *User, eventType string, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, updateHistory, sendToAllFilter)
+}
+
+// sends the body string data to all connected clients on the same channel
+func sendToAllOnChannelFilter(user *User, jsonResponse []byte) func(key any, value any) bool  {
+	return func(key, value interface{}) bool {
 		var userValue = value.(*User)
-		if restrictToChannel {
-			if userValue.CurrentChannelId == channelId {
-				if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-					log.Print("sendToAll():", err)
-				}
-			}
-		} else {
+		if userValue.CurrentChannelId == user.CurrentChannelId {
 			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
 				log.Print("sendToAll():", err)
 			}
 		}
 		return true
-	})
+	}
+}
+// sends the body string data to all connected clients
+func sendToAllFilter(user *User, jsonResponse []byte) func(key any, value any) bool  {
+	return func(key, value interface{}) bool {
+		var userValue = value.(*User)
+		if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
+			log.Print("sendToAll():", err)
+		}
+		return true
+	}
 }
 
-// sendToOne - sends the body string data to a parameter defined client
-func sendToOne(body string, user *User, eventType string) {
+// sends the body string data to all connected clients on the same channel except the parameter given client
+func sendToOtherOnChannelFilter(user *User, jsonResponse []byte) func(key any, value any) bool  {
+	return func(key, value interface{}) bool {
+		userValue := value.(*User)
+		if userValue != user && userValue.CurrentChannelId == user.CurrentChannelId {
+			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
+				log.Print("sendToOtherOnChannel():", err)
+			}
+		}
+		return true
+	}
+}
+
+// sends the body string data to all connected clients except the parameter given client
+func sendToOtherEverywhereFilter(user *User, jsonResponse []byte) func(key any, value any) bool {
+	return func(key, value interface{}) bool {
+		userValue := value.(*User)
+		if userValue != user {
+			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
+				log.Print("sendToOtherEverywhere():", err)
+			}
+		}
+		return true
+	}
+}
+
+type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
+
+// sends the body string data to a parameter defined client
+func sendOneMessage(body string, user *User, eventType string) {
 	log.Println("sendToOne(): " + body)
 	response := EventData{Event: eventType, Body: body,
 		UserCount: UserCount, Name: "", CreatedDate: time.Now()}
@@ -94,49 +133,24 @@ func sendToOne(body string, user *User, eventType string) {
 		log.Print("sendToOne():", err)
 	}
 }
-
-// sendToOtherOnChannel - sends the body string data to all connected clients on the same channel except the parameter given client
-func sendToOtherOnChannel(body string, user *User, eventType string) {
-	log.Print("sendToOtherOnChannel():", body)
-	response := EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("sendToOtherOnChannel():", err)
-	}
-	if eventType == EventMessage {
-		updateChatHistory(jsonResponse)
-	}
-	Users.Range(func(key, value interface{}) bool {
-		userValue := value.(*User)
-		if userValue != user && userValue.CurrentChannelId == user.CurrentChannelId {
-			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-				log.Print("sendToOtherOnChannel():", err)
-			}
-		}
-		return true
-	})
-}
-
-// SendToOtherEverywhere - sends the body string data to all connected clients except the parameter given client
-func sendToOtherEverywhere(body string, user *User, eventType string) {
+// send multiple messages using the provided filterFunction
+func sendMultipleMessages(user *User, body string, eventType string, updateHistory bool, filterFn messageFn) {
 	log.Print("sendToOtherEverywhere():", body)
-	response := EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
+	var response EventData
+	if (eventType == EventMessage) {
+		response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, Name: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
+	} else {
+		response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
+	}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("sendToOtherEverywhere():", err)
 	}
-	if eventType == EventMessage {
+	if updateHistory {
 		updateChatHistory(jsonResponse)
 	}
-	Users.Range(func(key, value interface{}) bool {
-		userValue := value.(*User)
-		if userValue != user {
-			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-				log.Print("sendToOtherEverywhere():", err)
-			}
-		}
-		return true
-	})
+	fn := filterFn(user, jsonResponse)
+	Users.Range(fn)
 }
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
@@ -175,7 +189,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
-	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification)
+	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification, true)
 	err = handleJoin(&newUser)
 	if err != nil {
 		connection.Close()
@@ -183,7 +197,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		log.Print("newChatConnection():", err)
 	} else {
 		if len(newUser.Token) > 0 {
-			sendToOne("Logged in successfully.", &newUser, EventLogin)
+			sendOneMessage("Logged in successfully.", &newUser, EventLogin)
 		}
 		go reader(&newUser)
 		go heartbeat(&newUser)
@@ -198,7 +212,7 @@ func reader(user *User) {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		removeUser(user)
-		sendToAll(user.Name+" has disconnected.", user.CurrentChannelId, "", EventNotification, false)
+		sendToAll(user.Name+" has disconnected.", user, EventNotification, true)
 	}()
 	user.Connection.SetReadLimit(maxMessageSize)
 	user.Connection.SetReadDeadline(time.Now().Add(pongWait))

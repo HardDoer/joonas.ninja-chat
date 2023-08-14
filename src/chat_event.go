@@ -45,48 +45,40 @@ func handleCommand(body string, user *User) {
 	case CommandWhereAmI:
 		handleWhereCommand(user)
 	default:
-		sendToOne("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
+		sendOneMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	}
 }
 
 // handleMessageEvent -
 func handleMessageEvent(body string, user *User) error {
-	var senderName = ""
-	if len(body) < 4096 {
+	if len(body) < 256 {
 		if strings.Index(body, "/") != 0 {
 			value, _ := Users.Load(user)
 			user := value.(*User)
-			senderName = user.Name
-			sendToAll(body, user.CurrentChannelId, senderName, EventMessage, true)
+			sendToAllOnChannel(body, user, EventMessage, true)
 		} else {
 			handleCommand(body, user)
 		}
 	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä viestistä.
-		log.Println("Message is too long")
+		sendOneMessage("Message is too long.", user, EventErrorNotification)
 	}
 	return nil
 }
 
 // handleJoin -
 func handleJoin(chatUser *User) error {
+	// TODO. Refaktoroi chat history palauttamaan vaan se rakennettu kikkare. Sit voidaan lähettää se suoraan noiden message funktioiden kautta eikä tarvitse
+	// erikseen kirjoittaa sitä tässä.
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {
 		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
 			return err
 		}
 	} else {
-		sendToOne("Error refreshing chat history.", chatUser, EventErrorNotification)
+		sendOneMessage("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}
-	response := EventData{Event: EventJoin, ChannelId: chatUser.CurrentChannelId, Body: chatUser.Name, UserCount: UserCount, CreatedDate: time.Now()}
-	jsonResponse, err := marshalJson(response)
-	if err != nil {
-		return err
-	}
-	if err := chatUser.write(websocket.TextMessage, jsonResponse); err != nil {
-		return err
-	}
-	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification)
+	sendOneMessage(chatUser.Name, chatUser, EventJoin)
+	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification, false)
 	return nil
 }
 

@@ -34,11 +34,9 @@ func setupChatHistory() *httptest.Server {
 
 func TestJoinShouldReturnErrorWhenNoChatHistory(t *testing.T) {
 	ws, server := testSetup(t)
-	chathistoryServer := setupChatHistory()
 	defer func() {
 		server.Close()
 		ws.Close()
-		chathistoryServer.Close()
 	}()
 	_, message, err := ws.ReadMessage()
 	assert.Nil(t, err)
