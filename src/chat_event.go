@@ -1,9 +1,7 @@
 package main
 
 import (
-	"log"
 	"strings"
-	"time"
 	"github.com/gorilla/websocket"
 )
 
