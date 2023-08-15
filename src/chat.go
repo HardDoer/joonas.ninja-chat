@@ -26,8 +26,8 @@ type EventData struct {
 
 type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
 
-func getEvent(event string) (func(string, *User) error, bool) {
-	var events = map[string]func(string, *User) error{
+func getEvent(event string) (func(string, *User), bool) {
+	var events = map[string]func(string, *User){
 		EventTyping: handleTypingEvent,
 		EventMessage: handleMessageEvent,
 	}
@@ -51,12 +51,12 @@ func removeUser(user *User) {
 	atomic.AddInt32(&UserCount, -1)
 }
 
-func replyMustBeLoggedIn(user *User) {
-	sendSystemMessage("Must be logged in for that command to work.", user, EventErrorNotification)
+func replyMustBeLoggedIn() error {
+	return errors.New("must be logged in for that command to work")
 }
 
 func notEnoughParameters() error {
-	return errors.New("Not enough parameters. See '/help'")
+	return errors.New("not enough parameters. See '/help'")
 }
 
 func sendToOtherEverywhere(body string, user *User, eventType string, displayName bool, updateHistory bool) {
@@ -152,18 +152,12 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
 	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification, false, false)
-	err = handleJoin(&newUser)
-	if err != nil {
-		connection.Close()
-		removeUser(&newUser)
-		log.Print("newChatConnection():", err)
-	} else {
-		if len(newUser.Token) > 0 {
-			sendSystemMessage("Logged in successfully.", &newUser, EventLogin)
-		}
-		go reader(&newUser)
-		go heartbeat(&newUser)
+	handleJoin(&newUser)
+	if len(newUser.Token) > 0 {
+		sendSystemMessage("Logged in successfully.", &newUser, EventLogin)
 	}
+	go reader(&newUser)
+	go heartbeat(&newUser)
 }
 
 func reader(user *User) {
@@ -194,10 +188,7 @@ func reader(user *User) {
 			if readerError != nil || !ok {
 				return
 			}
-			readerError = eventFn(EventData.Body, user)
-			if readerError != nil {
-				return
-			}
+			eventFn(EventData.Body, user)
 		}
 	}
 }

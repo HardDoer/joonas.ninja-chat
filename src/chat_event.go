@@ -56,7 +56,7 @@ func handleCommand(body string, user *User) {
 }
 
 // handleMessageEvent -
-func handleMessageEvent(body string, user *User) error {
+func handleMessageEvent(body string, user *User) {
 	if len(body) < 256 {
 		if strings.Index(body, "/") != 0 {
 			value, _ := Users.Load(user)
@@ -68,11 +68,10 @@ func handleMessageEvent(body string, user *User) error {
 	} else {
 		sendSystemMessage("Message is too long.", user, EventErrorNotification)
 	}
-	return nil
 }
 
 // handleJoin -
-func handleJoin(chatUser *User) error {
+func handleJoin(chatUser *User) {
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if !reflect.DeepEqual(chatHistory, ChatHistory{}) {
 		marshalAndWriteToStream(chatUser, chatHistory)
@@ -81,10 +80,8 @@ func handleJoin(chatUser *User) error {
 	}
 	sendSystemMessage(chatUser.Name, chatUser, EventJoin)
 	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification, false, false)
-	return nil
 }
 
 // HandleTypingEvent -
-func handleTypingEvent(body string, user *User) error {
-	return nil
+func handleTypingEvent(body string, user *User) {
 }

@@ -83,7 +83,7 @@ func handleWhereCommand(_ []string, user *User) error {
 		}
 		sendSystemMessage("You are currently on channel '"+currentChannelId+"'", user, EventNotification)
 	} else {
-		return errors.New("must be logged in for that command to work")
+		return replyMustBeLoggedIn()
 	}
 	return nil
 }
@@ -292,10 +292,10 @@ func handleChannelCommand(commands []string, user *User) error {
 				defer channelResponse.Body.Close()
 			}
 		} else {
-			replyMustBeLoggedIn(user)
+			return replyMustBeLoggedIn()
 		}
 	} else {
-		notEnoughParameters(user)
+		return notEnoughParameters()
 	}
 	return nil
 }
