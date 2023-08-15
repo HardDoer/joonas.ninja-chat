@@ -25,9 +25,13 @@ type EventData struct {
 
 type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
 
-var events = map[string]func(string, *User) error{
-	EventTyping: handleTypingEvent,
-	EventMessage: handleMessageEvent,
+func getEvent(event string) (func(string, *User) error, bool) {
+	var events = map[string]func(string, *User) error{
+		EventTyping: handleTypingEvent,
+		EventMessage: handleMessageEvent,
+	}
+	eventFn, ok := events[event]
+	return eventFn, ok
 }
 
 // Users - A map containing all the connected users.
@@ -185,7 +189,7 @@ func reader(user *User) {
 			if readerError != nil {
 				return
 			}
-			eventFn, ok := events[EventData.Event]
+			eventFn, ok := getEvent(EventData.Event)
 			if readerError != nil || !ok {
 				return
 			}
