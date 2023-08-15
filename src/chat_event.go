@@ -2,7 +2,6 @@ package main
 
 import (
 	"strings"
-	"github.com/gorilla/websocket"
 )
 
 type chatLogin struct {
@@ -69,9 +68,7 @@ func handleJoin(chatUser *User) error {
 	// erikseen kirjoittaa sitä tässä.
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if chatHistory != nil {
-		if err := chatUser.write(websocket.TextMessage, chatHistory); err != nil {
-			return err
-		}
+		marshalAndWriteToStream(chatUser, chatHistory)
 	} else {
 		sendOneMessage("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
+	"encoding/json"
 	"os"
 	"time"
 
@@ -33,25 +33,16 @@ func initRoutes() {
 
 type responseParserFn func(response any) (any, error)
 
-func marshalJson(res any) ([]byte, error) {
-	parsedJsonResponse, err := json.Marshal(res)
-	if err != nil {
-		log.Print("marshalJsonResponse():", err)
-		return nil, err
-	}
-	return parsedJsonResponse, err
-}
-
 /*
 Parses a struct and marshals it back to json
 */
-func buildParsedJson(json any, responseParser responseParserFn) []byte {
-	response, err := responseParser(json)
+func buildParsedJson(jsonObject any, responseParser responseParserFn) []byte {
+	response, err := responseParser(jsonObject)
 	if err != nil {
 		log.Print("buildParsedJsonResponse():", err)
 		return nil
 	}
-	parsedJsonResponse, err := marshalJson(response)
+	parsedJsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("buildParsedJsonResponse():", err)
 		return nil

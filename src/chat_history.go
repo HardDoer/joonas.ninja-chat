@@ -26,7 +26,7 @@ func updateChatHistory(jsonResponse []byte) {
 	apiRequest("POST", apiRequestOptions{payload: jsonResponse}, "CHAT_HISTORY_URL", nil, nil)
 }
 
-func getChatHistory(channelId string) []byte {
+func getChatHistory(channelId string) any {
 	res, err := apiRequest("GET", apiRequestOptions{queryString: "?channelId=" + channelId}, "CHAT_HISTORY_URL", nil, nil)
 	if err != nil {
 		log.Print("getChatHistory():", err)
@@ -37,5 +37,5 @@ func getChatHistory(channelId string) []byte {
 		log.Print("getChatHistory():", err)
 		return nil
 	}
-	return buildParsedJson(eventData, newChatHistory)
+	return chatHistory{Event: EventChatHistory, Body: eventData, UserCount: UserCount}
 }

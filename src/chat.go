@@ -65,19 +65,24 @@ func sendToAll(body string, user *User, eventType string, displayName bool, upda
 	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToAllFilter)
 }
 
+func marshalAndWriteToStream(user *User, response any) {
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Print("marshalAndWriteToStream():", err)
+	}
+	if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
+		log.Print("marshalAndWriteToStream():", err)
+	}
+}
+
 // sends the body string data to a parameter defined client
 func sendOneMessage(body string, user *User, eventType string) {
 	log.Println("sendOneMessage(): " + body)
 	response := EventData{Event: eventType, Body: body,
 		UserCount: UserCount, Name: "", CreatedDate: time.Now()}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("sendOneMessage():", err)
-	}
-	if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-		log.Print("sendOneMessage():", err)
-	}
+	marshalAndWriteToStream(user, response)
 }
+
 // send multiple messages using the provided filterFunction
 func sendMultipleMessages(user *User, body string, eventType string, displayName bool, updateHistory bool, filterFn messageFn) {
 	log.Print("sendMultipleMessages():", body)
