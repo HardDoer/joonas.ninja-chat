@@ -32,6 +32,12 @@ func setupChatHistory() *httptest.Server {
 	return chatHistoryServer
 }
 
+func setupServer(env string) *httptest.Server  {
+	server := httptest.NewServer(http.HandlerFunc(chatHistoryTest))
+	os.Setenv(env, server.URL)
+	return server
+}
+
 func TestJoinShouldReturnErrorWhenNoChatHistory(t *testing.T) {
 	ws, server := testSetup(t)
 	defer func() {
@@ -127,15 +133,17 @@ func TestErrorWhenMessageTooLong(t *testing.T) {
 func TestChangeName(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
+	testServer := setupServer("CHAT_CHANGE_NICKNAME")
 	defer func() {
 		server.Close()
 		ws.Close()
+		testServer.Close()
 	}()
 	_, _, err := ws.ReadMessage()
 	assert.Nil(t, err)
 	_, _, err = ws.ReadMessage()
 	assert.Nil(t, err)
-	testRequest := EventData{Event: EventNameChange, Body: "TestDude"}
+	testRequest := EventData{Event: EventMessage, Body: "/nick TestDude"}
 	jsonResponse, err := json.Marshal(testRequest)
 	assert.Nil(t, err)
 	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))

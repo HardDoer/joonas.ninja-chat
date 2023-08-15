@@ -186,6 +186,7 @@ func reader(user *User) {
 			}
 			eventFn, ok := getEvent(EventData.Event)
 			if readerError != nil || !ok {
+				log.Println("event not recognized")
 				return
 			}
 			eventFn(EventData.Body, user)
