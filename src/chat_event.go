@@ -65,8 +65,6 @@ func handleMessageEvent(body string, user *User) error {
 
 // handleJoin -
 func handleJoin(chatUser *User) error {
-	// TODO. Refaktoroi chat history palauttamaan vaan se rakennettu kikkare. Sit voidaan lähettää se suoraan noiden message funktioiden kautta eikä tarvitse
-	// erikseen kirjoittaa sitä tässä.
 	chatHistory := getChatHistory(chatUser.CurrentChannelId)
 	if !reflect.DeepEqual(chatHistory, ChatHistory{}) {
 		marshalAndWriteToStream(chatUser, chatHistory)
