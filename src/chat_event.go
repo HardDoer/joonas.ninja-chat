@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"reflect"
 	"strings"
 )
@@ -42,12 +43,15 @@ func handleCommand(body string, user *User) {
 	var splitBody = strings.Split(body, "/")
 	splitBody = strings.Split(splitBody[1], " ")
 	command := splitBody[0]
-	// TODO. Mappiin nämä ja errori palautetaan.
 	commandFn, ok := getCommand(command)
 	if (!ok) {
 		sendSystemMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	} else {
-		commandFn(splitBody, user)
+		err := commandFn(splitBody, user)
+		if (err != nil) {
+			log.Print("handleCommand(): ", err)
+			sendSystemMessage(err.Error(), user, EventErrorNotification)
+		}
 	}
 }
 

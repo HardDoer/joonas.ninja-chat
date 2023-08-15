@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback responseFn) ([]byte, error) {
+func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
 	client := &http.Client{}
 	url := os.Getenv(env)
 	var req *http.Request
@@ -49,7 +49,7 @@ func apiRequest(method string, requestOptions apiRequestOptions, env string, suc
 		errorResponse := errors.New("Error response: " + url + " " + apiResponse.Status)
 		log.Print("apiRequest():", errorResponse)
 		if expectedErrorCallback != nil {
-			return expectedErrorCallback(responseBody), errorResponse
+			return nil, expectedErrorCallback(responseBody)
 		}
 		return nil, errorResponse
 	}

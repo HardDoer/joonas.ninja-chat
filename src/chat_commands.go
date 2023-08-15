@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -54,6 +55,8 @@ type apiRequestOptions struct {
 
 type responseFn func([]byte) []byte
 
+type errorResponseFn func([]byte) error
+
 // handleHelpCommand - dibadaba
 func handleHelpCommand(_ []string, user *User) error {
 	var response []helpDTO
@@ -80,12 +83,12 @@ func handleWhereCommand(_ []string, user *User) error {
 		}
 		sendSystemMessage("You are currently on channel '"+currentChannelId+"'", user, EventNotification)
 	} else {
-		replyMustBeLoggedIn(user)
+		return errors.New("must be logged in for that command to work")
 	}
 	return nil
 }
 
-func changeNameRequest(user *User, method string, body string, expectedErrorCallback responseFn) error {
+func changeNameRequest(user *User, method string, body string, expectedErrorCallback errorResponseFn) error {
 	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
 	_, err := apiRequest(method, apiRequestOptions{payload: jsonResponse}, "CHAT_CHANGE_NICKNAME", func(response []byte) []byte {
 		originalName := user.Name
@@ -108,25 +111,21 @@ func handleNameChangeCommand(splitBody []string, user *User) error {
 	if len(body) <= 64 && len(body) >= 1 {
 		body = strings.ReplaceAll(body, " ", "")
 		if body == "" {
-			sendSystemMessage("No empty names!", user, EventErrorNotification)
-			return nil
+			return errors.New("no empty names")
 		}
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		log.Println("handleNameChangeCommand(): User " + user.Name + " is changing name.")
 		if user.Name == body {
-			sendSystemMessage("You already have that nickname.", user, EventErrorNotification)
-			return nil
+			return errors.New("you already have that nickname")
 		}
 		if len(user.Token) > 0 {
-			err = changeNameRequest(user, "PUT", body, func(response []byte) []byte {
-				sendSystemMessage("Names must be unique.", user, EventErrorNotification)
-				return nil
+			err = changeNameRequest(user, "PUT", body, func(response []byte) error {
+				return errors.New("names must be unique")
 			})
 		} else {
-			err = changeNameRequest(user, "POST", body, func(response []byte) []byte {
-				sendSystemMessage("Name reserved by registered user. Register to reserve nicknames.", user, EventErrorNotification)
-				return nil
+			err = changeNameRequest(user, "POST", body, func(response []byte) error {
+				return errors.New("name reserved by registered user. Register to reserve nicknames")
 			})
 		}
 	} else {
@@ -143,8 +142,7 @@ func handleChannelCommand(commands []string, user *User) error {
 		if len(user.Token) > 0 {
 			if subCommand == "create" {
 				if len(commands) < 3 {
-					sendSystemMessage("No empty names!", user, EventErrorNotification)
-					return nil
+					return errors.New("no empty names")
 				}
 				var parameter1 = commands[2]
 				var parameter2 = false

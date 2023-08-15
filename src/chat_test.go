@@ -124,7 +124,6 @@ func TestErrorWhenMessageTooLong(t *testing.T) {
 		"Error happens when chat message is too long.")
 }
 
-/*
 func TestChangeName(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
@@ -133,6 +132,8 @@ func TestChangeName(t *testing.T) {
 		ws.Close()
 	}()
 	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, _, err = ws.ReadMessage()
 	assert.Nil(t, err)
 	testRequest := EventData{Event: EventNameChange, Body: "TestDude"}
 	jsonResponse, err := json.Marshal(testRequest)
@@ -147,4 +148,3 @@ func TestChangeName(t *testing.T) {
 		responseData.Event == EventNameChange,
 		"nameChange-event should return the user set name in the response and the response structure should be as expected.")
 }
-*/
