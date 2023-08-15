@@ -53,7 +53,7 @@ func handleMessageEvent(body string, user *User) error {
 		if strings.Index(body, "/") != 0 {
 			value, _ := Users.Load(user)
 			user := value.(*User)
-			sendToAllOnChannel(body, user, EventMessage, true)
+			sendToAllOnChannel(body, user, EventMessage, true, true)
 		} else {
 			handleCommand(body, user)
 		}
@@ -76,7 +76,7 @@ func handleJoin(chatUser *User) error {
 		sendOneMessage("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}
 	sendOneMessage(chatUser.Name, chatUser, EventJoin)
-	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification, false)
+	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification, false, false)
 	return nil
 }
 

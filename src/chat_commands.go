@@ -90,7 +90,7 @@ func changeNameRequest(user *User, method string, body string, expectedErrorCall
 		user.Name = body
 		Users.Store(user, user)
 		sendOneMessage(body, user, EventNameChange)
-		sendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification, false)
+		sendToOtherOnChannel(originalName+" is now called "+body, user, EventNotification, false, false)
 		return nil
 	}, expectedErrorCallback)
 	return err
@@ -203,7 +203,7 @@ func handleChannelCommand(commands []string, user *User) {
 				}
 				var parameter1 = commands[2]
 				var readResponse channelReadResponse
-				sendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification, false)
+				sendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification, false, false)
 				client := &http.Client{}
 				if len(parameter1) < 1 || parameter1 == PublicChannelName {
 					user.CurrentChannelId = ""

@@ -54,4 +54,6 @@ const CommandChannel = "channel"
 
 const CommandHelp = "help"
 
+const SystemName = "System"
+
 const ErrorCodeCommandNotRecognized = "0"

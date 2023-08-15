@@ -49,20 +49,20 @@ func notEnoughParameters(user *User) {
 	sendOneMessage("Not enough parameters. See '/help'", user, EventErrorNotification)
 }
 
-func sendToOtherEverywhere(body string, user *User, eventType string, updateHistory bool) {
-	sendMultipleMessages(user, body, eventType, updateHistory, sendToOtherEverywhereFilter)
+func sendToOtherEverywhere(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToOtherEverywhereFilter)
 }
 
-func sendToOtherOnChannel(body string, user *User, eventType string, updateHistory bool) {
-	sendMultipleMessages(user, body, eventType, updateHistory, sendToOtherOnChannelFilter)
+func sendToOtherOnChannel(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToOtherOnChannelFilter)
 }
 
-func sendToAllOnChannel(body string, user *User, eventType string, updateHistory bool) {
-	sendMultipleMessages(user, body, eventType, updateHistory, sendToAllOnChannelFilter)
+func sendToAllOnChannel(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToAllOnChannelFilter)
 }
 
-func sendToAll(body string, user *User, eventType string, updateHistory bool) {
-	sendMultipleMessages(user, body, eventType, updateHistory, sendToAllFilter)
+func sendToAll(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToAllFilter)
 }
 
 // sends the body string data to a parameter defined client
@@ -79,15 +79,16 @@ func sendOneMessage(body string, user *User, eventType string) {
 	}
 }
 // send multiple messages using the provided filterFunction
-func sendMultipleMessages(user *User, body string, eventType string, updateHistory bool, filterFn messageFn) {
+func sendMultipleMessages(user *User, body string, eventType string, displayName bool, updateHistory bool, filterFn messageFn) {
 	log.Print("sendMultipleMessages():", body)
 	var response EventData
-	// TODO. Nimi tyhjäksi vaan suoraan kun ei tarvita niin ei tarvitse tarkistella tässä tyhmästi?
-	if (eventType == EventMessage) {
-		response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, Name: user.Name, UserCount: UserCount, CreatedDate: time.Now()}
+	var name string
+	if (!displayName) {
+		name = SystemName
 	} else {
-		response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
+		name = user.Name
 	}
+	response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, Name: name, UserCount: UserCount, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Print("sendMultipleMessages():", err)
@@ -116,7 +117,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 			}
 			return true
 		})
-		if isClosed == true {
+		if isClosed {
 			log.Print("newChatConnection(): Token already in use. Connection closed.")
 			return
 		}
@@ -135,7 +136,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
-	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification, true)
+	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification, false, false)
 	err = handleJoin(&newUser)
 	if err != nil {
 		connection.Close()
@@ -158,7 +159,7 @@ func reader(user *User) {
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		removeUser(user)
-		sendToAll(user.Name+" has disconnected.", user, EventNotification, true)
+		sendToAll(user.Name+" has disconnected.", user, EventNotification, false, false)
 	}()
 	user.Connection.SetReadLimit(maxMessageSize)
 	user.Connection.SetReadDeadline(time.Now().Add(pongWait))
