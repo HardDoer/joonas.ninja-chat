@@ -237,12 +237,7 @@ func handleChannelCommand(commands []string, user *User) error {
 					_ = json.Unmarshal(body, &readResponse)
 					user.CurrentChannelId = readResponse.Name
 				}
-				err := handleJoin(user)
-				if err != nil {
-					log.Print("handleChannelCommand():", err)
-					sendSystemMessage("Error joining channel", user, EventErrorNotification)
-					return nil
-				}
+				handleJoin(user)
 				sendSystemMessage("Succesfully joined channel '"+parameter1+"'", user, EventNotification)
 			} else if subCommand == "list" {
 				client := &http.Client{}
