@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"encoding/json"
 	"os"
 	"time"
 
@@ -29,25 +28,6 @@ func initRoutes() {
 	http.HandleFunc("/api/v1/ws/chat", chatRequest)
 	http.HandleFunc("/api/v1/http/chat/login", loginRequest)
 	log.Print("initRoutes():", "Routes initialized.")
-}
-
-type responseParserFn func(response any) (any, error)
-
-/*
-Parses a struct and marshals it back to json
-*/
-func buildParsedJson(jsonObject any, responseParser responseParserFn) []byte {
-	response, err := responseParser(jsonObject)
-	if err != nil {
-		log.Print("buildParsedJsonResponse():", err)
-		return nil
-	}
-	parsedJsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("buildParsedJsonResponse():", err)
-		return nil
-	}
-	return parsedJsonResponse
 }
 
 func heartbeat(user *User) {
