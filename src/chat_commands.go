@@ -129,8 +129,7 @@ func handleNameChangeCommand(splitBody []string, user *User) error {
 			})
 		}
 	} else {
-		// TODO. Palauta joku virhe käyttäjälle liian pitkästä nimestä. Lisää vaikka joku error-tyyppi.
-		log.Println("New name is too long or too short")
+		return errors.New("that name is too long")
 	}
 	return err
 }
