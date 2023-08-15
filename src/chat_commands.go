@@ -328,5 +328,5 @@ func handleWhoCommand(user *User) {
 		log.Println(err)
 		return
 	}
-	sendOneMessage(string(jsonResponse), user, EventWho)
+	sendSystemMessage(string(jsonResponse), user, EventWho)
 }

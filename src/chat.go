@@ -42,11 +42,11 @@ func removeUser(user *User) {
 }
 
 func replyMustBeLoggedIn(user *User) {
-	sendOneMessage("Must be logged in for that command to work.", user, EventErrorNotification)
+	sendSystemMessage("Must be logged in for that command to work.", user, EventErrorNotification)
 }
 
 func notEnoughParameters(user *User) {
-	sendOneMessage("Not enough parameters. See '/help'", user, EventErrorNotification)
+	sendSystemMessage("Not enough parameters. See '/help'", user, EventErrorNotification)
 }
 
 func sendToOtherEverywhere(body string, user *User, eventType string, displayName bool, updateHistory bool) {
@@ -76,10 +76,10 @@ func marshalAndWriteToStream(user *User, response any) {
 }
 
 // sends the body string data to a parameter defined client
-func sendOneMessage(body string, user *User, eventType string) {
+func sendSystemMessage(body string, user *User, eventType string) {
 	log.Println("sendOneMessage(): " + body)
 	response := EventData{Event: eventType, Body: body,
-		UserCount: UserCount, Name: "", CreatedDate: time.Now()}
+		UserCount: UserCount, Name: SystemName, CreatedDate: time.Now()}
 	marshalAndWriteToStream(user, response)
 }
 
@@ -149,7 +149,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 		log.Print("newChatConnection():", err)
 	} else {
 		if len(newUser.Token) > 0 {
-			sendOneMessage("Logged in successfully.", &newUser, EventLogin)
+			sendSystemMessage("Logged in successfully.", &newUser, EventLogin)
 		}
 		go reader(&newUser)
 		go heartbeat(&newUser)

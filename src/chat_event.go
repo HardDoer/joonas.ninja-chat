@@ -43,7 +43,7 @@ func handleCommand(body string, user *User) {
 	case CommandWhereAmI:
 		handleWhereCommand(user)
 	default:
-		sendOneMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
+		sendSystemMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	}
 }
 
@@ -58,7 +58,7 @@ func handleMessageEvent(body string, user *User) error {
 			handleCommand(body, user)
 		}
 	} else {
-		sendOneMessage("Message is too long.", user, EventErrorNotification)
+		sendSystemMessage("Message is too long.", user, EventErrorNotification)
 	}
 	return nil
 }
@@ -71,9 +71,9 @@ func handleJoin(chatUser *User) error {
 	if !reflect.DeepEqual(chatHistory, ChatHistory{}) {
 		marshalAndWriteToStream(chatUser, chatHistory)
 	} else {
-		sendOneMessage("Error refreshing chat history.", chatUser, EventErrorNotification)
+		sendSystemMessage("Error refreshing chat history.", chatUser, EventErrorNotification)
 	}
-	sendOneMessage(chatUser.Name, chatUser, EventJoin)
+	sendSystemMessage(chatUser.Name, chatUser, EventJoin)
 	sendToOtherOnChannel(chatUser.Name+" has joined the channel.", chatUser, EventNotification, false, false)
 	return nil
 }
