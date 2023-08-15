@@ -77,6 +77,6 @@ func handleJoin(chatUser *User) error {
 }
 
 // HandleTypingEvent -
-func HandleTypingEvent(body string, user *User) error {
+func handleTypingEvent(body string, user *User) error {
 	return nil
 }

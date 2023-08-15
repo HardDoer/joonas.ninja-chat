@@ -25,6 +25,11 @@ type EventData struct {
 
 type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
 
+var events = map[string]func(string, *User) error{
+	EventTyping: handleTypingEvent,
+	EventMessage: handleMessageEvent,
+}
+
 // Users - A map containing all the connected users.
 var Users sync.Map
 
@@ -180,12 +185,11 @@ func reader(user *User) {
 			if readerError != nil {
 				return
 			}
-			switch EventData.Event {
-			case EventTyping:
-				readerError = HandleTypingEvent(EventData.Body, user)
-			case EventMessage:
-				readerError = handleMessageEvent(EventData.Body, user)
+			eventFn, ok := events[EventData.Event]
+			if readerError != nil || !ok {
+				return
 			}
+			readerError = eventFn(EventData.Body, user)
 			if readerError != nil {
 				return
 			}
