@@ -129,7 +129,7 @@ func handleNameChangeCommand(splitBody []string, user *User) error {
 			})
 		}
 	} else {
-		return errors.New("that name is too long")
+		return errors.New("that name is too long ")
 	}
 	return err
 }
@@ -150,13 +150,13 @@ func handleChannelCommand(commands []string, user *User) error {
 				}
 				parameter1 = strings.ReplaceAll(parameter1, " ", "")
 				if parameter1 == "" {
-					sendSystemMessage("No empty names!", user, EventErrorNotification)
-					return nil
+					return errors.New("no empty names")
 				}
 				if parameter1 == PublicChannelName {
-					sendSystemMessage("That is a reserved name. Try a different name for your channel.", user, EventErrorNotification)
+					return errors.New("that is a reserved name. Try a different name for your channel")
 				}
 				if len(parameter1) <= 16 {
+					// TODO. Refaktoroi käyttään apiRequestia.
 					client := &http.Client{}
 					jsonResponse, _ := json.Marshal(channelDTO{Name: parameter1, CreatorToken: user.Token, Private: parameter2})
 					req, _ := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_URL"), bytes.NewBuffer(jsonResponse))
@@ -174,8 +174,7 @@ func handleChannelCommand(commands []string, user *User) error {
 				}
 			} else if subCommand == "invite" {
 				if len(commands) != 4 {
-					sendSystemMessage("Insufficient parameters.", user, EventErrorNotification)
-					return nil
+					return errors.New("insufficient parameters")
 				}
 				var parameter1 = commands[2]
 				var parameter2 = commands[3]
@@ -197,8 +196,7 @@ func handleChannelCommand(commands []string, user *User) error {
 				sendSystemMessage("Invite sent successfully to: "+parameter2, user, EventNotification)
 			} else if subCommand == "join" {
 				if len(commands) != 3 {
-					notEnoughParameters(user)
-					return nil
+					return notEnoughParameters()
 				}
 				var parameter1 = commands[2]
 				var readResponse channelReadResponse
@@ -211,14 +209,12 @@ func handleChannelCommand(commands []string, user *User) error {
 					jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
 					if err != nil {
 						log.Print("handleChannelCommand():", err)
-						sendSystemMessage("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
-						return nil
+						return errors.New("error joining channel: '"+parameter1+"'")
 					}
 					req, err := http.NewRequest("POST", os.Getenv("CHAT_CHANNEL_LIST_URL"), bytes.NewBuffer(jsonResponse))
 					if err != nil {
 						log.Print("handleChannelCommand():", err)
-						sendSystemMessage("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
-						return nil
+						return errors.New("error joining channel: '"+parameter1+"'")
 					}
 					req.Header.Add("Content-Type", "application/json")
 					req.Header.Add("Authorization", `Basic `+
@@ -226,13 +222,11 @@ func handleChannelCommand(commands []string, user *User) error {
 					channelResponse, err := client.Do(req)
 					if err != nil {
 						log.Print("handleChannelCommand():", err)
-						sendSystemMessage("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
-						return nil
+						return errors.New("error joining channel: '"+parameter1+"'")
 					}
 					if channelResponse != nil && channelResponse.Status != "200 OK" {
 						log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
-						sendSystemMessage("Error joining channel: '"+parameter1+"'", user, EventErrorNotification)
-						return nil
+						return errors.New("error joining channel: '"+parameter1+"'")
 					}
 					defer channelResponse.Body.Close()
 					body, err := ioutil.ReadAll(channelResponse.Body)
@@ -278,8 +272,7 @@ func handleChannelCommand(commands []string, user *User) error {
 				defer channelResponse.Body.Close()
 			} else if subCommand == "default" {
 				if len(user.CurrentChannelId) == 0 {
-					sendSystemMessage("You are currently on the 'public' channel which does not need to be set as default.", user, EventErrorNotification)
-					return nil
+					return errors.New("you are currently on the 'public' channel which does not need to be set as default")
 				}
 				client := &http.Client{}
 				jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: user.CurrentChannelId})

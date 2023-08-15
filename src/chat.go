@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -54,8 +55,8 @@ func replyMustBeLoggedIn(user *User) {
 	sendSystemMessage("Must be logged in for that command to work.", user, EventErrorNotification)
 }
 
-func notEnoughParameters(user *User) {
-	sendSystemMessage("Not enough parameters. See '/help'", user, EventErrorNotification)
+func notEnoughParameters() error {
+	return errors.New("Not enough parameters. See '/help'")
 }
 
 func sendToOtherEverywhere(body string, user *User, eventType string, displayName bool, updateHistory bool) {
