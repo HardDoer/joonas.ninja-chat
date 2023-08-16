@@ -1,15 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 )
 
 // TODO. Return something more useful.
@@ -18,7 +19,7 @@ func chatHistoryTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func testSetup(t *testing.T) (*websocket.Conn, *httptest.Server) {
-	server := httptest.NewServer(http.HandlerFunc(ChatRequest))
+	server := httptest.NewServer(http.HandlerFunc(chatRequest))
 	url := "ws" + strings.TrimPrefix(server.URL, "http")
 	ws, _, err := websocket.DefaultDialer.Dial(url, nil)
 	assert.Nil(t, err)
@@ -31,14 +32,42 @@ func setupChatHistory() *httptest.Server {
 	return chatHistoryServer
 }
 
-func TestJoin(t *testing.T) {
-	var responseData EventData
+func setupServer(env string) *httptest.Server  {
+	server := httptest.NewServer(http.HandlerFunc(chatHistoryTest))
+	os.Setenv(env, server.URL)
+	return server
+}
+
+func TestJoinShouldReturnErrorWhenNoChatHistory(t *testing.T) {
 	ws, server := testSetup(t)
 	defer func() {
 		server.Close()
 		ws.Close()
 	}()
 	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	var responseData EventData
+	err = json.Unmarshal(message, &responseData)
+	assert.Nil(t, err)
+	assert.Equal(t, true,
+		responseData.Body == "Error refreshing chat history." &&
+		responseData.UserCount == 1 &&
+		responseData.Event == EventErrorNotification)
+}
+
+func TestJoin(t *testing.T) {
+	var responseData EventData
+	ws, server := testSetup(t)
+	chathistoryServer := setupChatHistory()
+	defer func() {
+		server.Close()
+		ws.Close()
+		chathistoryServer.Close()
+	}()
+	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
 	assert.Nil(t, err)
 	readerError := json.Unmarshal(message, &responseData)
 	assert.Nil(t, readerError)
@@ -52,13 +81,13 @@ func TestJoin(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
-	chathistoryServer := setupChatHistory()
 	defer func() {
 		server.Close()
 		ws.Close()
-		chathistoryServer.Close()
 	}()
 	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, _, err = ws.ReadMessage()
 	assert.Nil(t, err)
 	testRequest := EventData{Event: EventMessage, Body: "Testing message"}
 	jsonResponse, err := json.Marshal(testRequest)
@@ -70,12 +99,12 @@ func TestSendMessage(t *testing.T) {
 	assert.Nil(t, readerError)
 	assert.Equal(t, true, responseData.Body == "Testing message" &&
 		responseData.UserCount == 1 &&
+		strings.HasPrefix(responseData.Name, "Anon") &&
 		responseData.Event == EventMessage,
 		"Response to a normal chatmessage should be valid.")
 }
 
-/*
-func TestChangeName(t *testing.T) {
+func TestErrorWhenMessageTooLong(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
 	defer func() {
@@ -84,7 +113,37 @@ func TestChangeName(t *testing.T) {
 	}()
 	_, _, err := ws.ReadMessage()
 	assert.Nil(t, err)
-	testRequest := EventData{Event: EventNameChange, Body: "TestDude"}
+	_, _, err = ws.ReadMessage()
+	assert.Nil(t, err)
+	testRequest := EventData{Event: EventMessage, Body: "Testing messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting message"}
+	jsonResponse, err := json.Marshal(testRequest)
+	assert.Nil(t, err)
+	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))
+	_, message, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	readerError := json.Unmarshal(message, &responseData)
+	assert.Nil(t, readerError)
+	assert.Equal(t, true, responseData.Body == "Message is too long." &&
+		responseData.UserCount == 1 &&
+		responseData.Name == "" &&
+		responseData.Event == EventErrorNotification,
+		"Error happens when chat message is too long.")
+}
+
+func TestChangeName(t *testing.T) {
+	var responseData EventData
+	ws, server := testSetup(t)
+	testServer := setupServer("CHAT_CHECK_NICKNAME")
+	defer func() {
+		server.Close()
+		ws.Close()
+		testServer.Close()
+	}()
+	_, _, err := ws.ReadMessage()
+	assert.Nil(t, err)
+	_, _, err = ws.ReadMessage()
+	assert.Nil(t, err)
+	testRequest := EventData{Event: EventMessage, Body: "/nick TestDude"}
 	jsonResponse, err := json.Marshal(testRequest)
 	assert.Nil(t, err)
 	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))
@@ -97,4 +156,3 @@ func TestChangeName(t *testing.T) {
 		responseData.Event == EventNameChange,
 		"nameChange-event should return the user set name in the response and the response structure should be as expected.")
 }
-*/

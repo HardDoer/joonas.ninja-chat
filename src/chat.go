@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,17 @@ type EventData struct {
 	CreatedDate time.Time `json:"createdDate"`
 }
 
+type messageFn func (user *User, jsonResponse []byte) func(key any, value any) bool
+
+func getEvent(event string) (func(string, *User), bool) {
+	var events = map[string]func(string, *User){
+		EventTyping: handleTypingEvent,
+		EventMessage: handleMessageEvent,
+	}
+	eventFn, ok := events[event]
+	return eventFn, ok
+}
+
 // Users - A map containing all the connected users.
 var Users sync.Map
 
@@ -34,108 +46,77 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func getUserName(connection *websocket.Conn) string {
-	value, _ := Users.Load(connection)
-	user := value.(*User)
-	return user.Name
-}
-
 func removeUser(user *User) {
 	Users.Delete(user)
 	atomic.AddInt32(&UserCount, -1)
 }
 
-func ReplyMustBeLoggedIn(user *User) {
-	SendToOne("Must be logged in for that command to work.", user, EventErrorNotification)
+func replyMustBeLoggedIn() error {
+	return errors.New("must be logged in for that command to work")
 }
 
-func NotEnoughParameters(user *User) {
-	SendToOne("Not enough parameters. See '/help'", user, EventErrorNotification)
+func genericError() error {
+	return errors.New("error executing operation")
 }
 
-// SendToAll - sends the body string data to all connected clients
-func SendToAll(body string, channelId string, name string, eventType string, restrictToChannel bool) {
-	log.Println("sendToAll(): " + body)
-	response := EventData{Event: eventType, ChannelId: channelId, Body: body, UserCount: UserCount, Name: name, CreatedDate: time.Now()}
+func notEnoughParameters() error {
+	return errors.New("not enough parameters. See '/help'")
+}
+
+func sendToOtherEverywhere(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToOtherEverywhereFilter)
+}
+
+func sendToOtherOnChannel(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToOtherOnChannelFilter)
+}
+
+func sendToAllOnChannel(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToAllOnChannelFilter)
+}
+
+func sendToAll(body string, user *User, eventType string, displayName bool, updateHistory bool) {
+	sendMultipleMessages(user, body, eventType, displayName, updateHistory, sendToAllFilter)
+}
+
+func marshalAndWriteToStream(user *User, response any) {
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
-		log.Print("sendToAll():", err)
-	}
-	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
-	}
-	Users.Range(func(key, value interface{}) bool {
-		var userValue = value.(*User)
-		if (restrictToChannel) {
-			if userValue.CurrentChannelId == channelId {
-				if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-					log.Print("sendToAll():", err)
-				}
-			}
-		} else {
-			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-				log.Print("sendToAll():", err)
-			}
-		}
-		return true
-	})
-}
-
-// SendToOne - sends the body string data to a parameter defined client
-func SendToOne(body string, user *User, eventType string) {
-	log.Println("sendToOne(): " + body)
-	response := EventData{Event: eventType, Body: body,
-		UserCount: UserCount, Name: "", CreatedDate: time.Now()}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("sendToOne():", err)
+		log.Print("marshalAndWriteToStream():", err)
 	}
 	if err := user.write(websocket.TextMessage, jsonResponse); err != nil {
-		log.Print("sendToOne():", err)
+		log.Print("marshalAndWriteToStream():", err)
 	}
 }
 
-// SendToOtherOnChannel - sends the body string data to all connected clients on the same channel except the parameter given client
-func SendToOtherOnChannel(body string, user *User, eventType string) {
-	log.Print("SendToOtherOnChannel():", body)
-	response := EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Print("SendToOtherOnChannel():", err)
-	}
-	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
-	}
-	Users.Range(func(key, value interface{}) bool {
-		userValue := value.(*User)
-		if userValue != user && userValue.CurrentChannelId == user.CurrentChannelId {
-			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-				log.Print("SendToOtherOnChannel():", err)
-			}
-		}
-		return true
-	})
+// sends the body string data to a parameter defined client
+func sendSystemMessage(body string, user *User, eventType string) {
+	log.Println("sendOneMessage(): " + body)
+	response := EventData{Event: eventType, Body: body,
+		UserCount: UserCount, Name: SystemName, CreatedDate: time.Now()}
+	marshalAndWriteToStream(user, response)
 }
-// SendToOtherEverywhere - sends the body string data to all connected clients except the parameter given client
-func SendToOtherEverywhere(body string, user *User, eventType string) {
-	log.Print("SendToOtherEverywhere():", body)
-	response := EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, UserCount: UserCount, CreatedDate: time.Now()}
+
+// send multiple messages using the provided filterFunction
+func sendMultipleMessages(user *User, body string, eventType string, displayName bool, updateHistory bool, filterFn messageFn) {
+	log.Print("sendMultipleMessages():", body)
+	var response EventData
+	var name string
+	if (!displayName) {
+		name = SystemName
+	} else {
+		name = user.Name
+	}
+	response = EventData{Event: eventType, ChannelId: user.CurrentChannelId, Body: body, Name: name, UserCount: UserCount, CreatedDate: time.Now()}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
-		log.Print("SendToOtherEverywhere():", err)
+		log.Print("sendMultipleMessages():", err)
 	}
-	if eventType == EventMessage {
-		UpdateChatHistory(jsonResponse)
+	if updateHistory {
+		updateChatHistory(jsonResponse)
 	}
-	Users.Range(func(key, value interface{}) bool {
-		userValue := value.(*User)
-		if userValue != user {
-			if err := userValue.write(websocket.TextMessage, jsonResponse); err != nil {
-				log.Print("SendToOtherEverywhere():", err)
-			}
-		}
-		return true
-	})
+	fn := filterFn(user, jsonResponse)
+	Users.Range(fn)
 }
 
 func newChatConnection(connection *websocket.Conn, cookie string) {
@@ -155,7 +136,7 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 			}
 			return true
 		})
-		if isClosed == true {
+		if isClosed {
 			log.Print("newChatConnection(): Token already in use. Connection closed.")
 			return
 		}
@@ -174,30 +155,42 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	}
 	Users.Store(&newUser, &newUser)
 	atomic.AddInt32(&UserCount, 1)
-	SendToOtherEverywhere(newUser.Name + " has connected.", &newUser, EventNotification)
-	err = HandleJoin(&newUser)
-	if err != nil {
-		connection.Close()
-		removeUser(&newUser)
-		log.Print("newChatConnection():", err)
-	} else {
-		if len(newUser.Token) > 0 {
-			SendToOne("Logged in successfully.", &newUser, EventLogin)
+	sendToOtherEverywhere(newUser.Name+" has connected.", &newUser, EventNotification, false, false)
+	handleJoin(&newUser)
+	if len(newUser.Token) > 0 {
+		sendSystemMessage("Logged in successfully.", &newUser, EventLogin)
+	}
+	go reader(&newUser)
+	go heartbeat(&newUser)
+}
+
+func heartbeat(user *User) {
+	log.Print("main():", "Starting heartbeat...")
+	defer func() {
+		log.Print("heartbeat():", "Stopping heartbeat..")
+		user.Connection.Close()
+	}()
+	for {
+		time.Sleep(2 * time.Second)
+		if err := user.write(websocket.PingMessage, nil); err != nil {
+			log.Print("heartbeat():", err.Error())
+			return
 		}
-		go reader(&newUser)
-		go heartbeat(&newUser)
 	}
 }
 
 func reader(user *User) {
 	var readerError error
 	defer func() {
-		log.Print("reader():", readerError)
+		if readerError != nil {
+			log.Print("reader():", readerError.Error())
+		}
+		log.Print("reader(): Closing reader")
 		user.Connection.Close()
 		key, _ := Users.Load(user)
 		user := key.(*User)
 		removeUser(user)
-		SendToAll(user.Name+" has disconnected.", user.CurrentChannelId, "", EventNotification, false)
+		sendToAll(user.Name+" has disconnected.", user, EventNotification, false, false)
 	}()
 	user.Connection.SetReadLimit(maxMessageSize)
 	user.Connection.SetReadDeadline(time.Now().Add(pongWait))
@@ -213,21 +206,18 @@ func reader(user *User) {
 			if readerError != nil {
 				return
 			}
-			switch EventData.Event {
-			case EventTyping:
-				readerError = HandleTypingEvent(EventData.Body, user)
-			case EventMessage:
-				readerError = HandleMessageEvent(EventData.Body, user)
-			}
-			if readerError != nil {
+			eventFn, ok := getEvent(EventData.Event)
+			if readerError != nil || !ok {
+				log.Println("event not recognized")
 				return
 			}
+			eventFn(EventData.Body, user)
 		}
 	}
 }
 
 // ChatRequest - A chat request.
-func ChatRequest(responseWriter http.ResponseWriter, request *http.Request) {
+func chatRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		allowedOrigin, found := os.LookupEnv("ALLOWED_ORIGIN")
 		if found {
