@@ -133,7 +133,7 @@ func TestErrorWhenMessageTooLong(t *testing.T) {
 func TestChangeName(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
-	testServer := setupServer("CHAT_CHANGE_NICKNAME")
+	testServer := setupServer("CHAT_CHECK_NICKNAME")
 	defer func() {
 		server.Close()
 		ws.Close()
