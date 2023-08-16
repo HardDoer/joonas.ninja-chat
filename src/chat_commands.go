@@ -88,9 +88,9 @@ func handleWhereCommand(_ []string, user *User) error {
 	return nil
 }
 
-func changeNameRequest(user *User, method string, body string, expectedErrorCallback errorResponseFn) error {
+func changeNameRequest(user *User, method string, env string, body string, expectedErrorCallback errorResponseFn) error {
 	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
-	_, err := apiRequest(method, apiRequestOptions{payload: jsonResponse}, "CHAT_CHANGE_NICKNAME", func(response []byte) []byte {
+	_, err := apiRequest(method, apiRequestOptions{payload: jsonResponse}, env, func(response []byte) []byte {
 		originalName := user.Name
 		user.Name = body
 		Users.Store(user, user)
@@ -101,7 +101,7 @@ func changeNameRequest(user *User, method string, body string, expectedErrorCall
 	return err
 }
 
-func handleNameChangeCommand(splitBody []string, user *User) error {
+func handleNameChangeCommand(splitBody []string, u *User) error {
 	if len(splitBody) < 2 {
 		return nil
 	}
@@ -113,18 +113,18 @@ func handleNameChangeCommand(splitBody []string, user *User) error {
 		if body == "" {
 			return errors.New("no empty names")
 		}
-		key, _ := Users.Load(user)
+		key, _ := Users.Load(u)
 		user := key.(*User)
 		log.Println("handleNameChangeCommand(): User " + user.Name + " is changing name.")
 		if user.Name == body {
 			return errors.New("you already have that nickname")
 		}
 		if len(user.Token) > 0 {
-			err = changeNameRequest(user, "PUT", body, func(response []byte) error {
+			err = changeNameRequest(user, "PUT", "CHAT_CHANGE_NICKNAME", body, func(response []byte) error {
 				return errors.New("names must be unique")
 			})
 		} else {
-			err = changeNameRequest(user, "POST", body, func(response []byte) error {
+			err = changeNameRequest(user, "POST", "CHAT_CHECK_NICKNAME", body, func(response []byte) error {
 				return errors.New("name reserved by registered user. Register to reserve nicknames")
 			})
 		}

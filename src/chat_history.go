@@ -10,13 +10,10 @@ type ChatHistory struct {
 	UserCount int32       `json:"userCount"`
 	Event     string      `json:"event"`
 }
-
+ 
 // updateChatHistory - Adds the parameter defined chat history entry to chat history
-func updateChatHistory(jsonResponse []byte) ([]byte, error) {
-	/*
-	return apiRequest("POST", apiRequestOptions{payload: jsonResponse}, "CHAT_HISTORY_URL", nil, nil)
-	*/
-	return nil, nil
+func updateChatHistory(jsonResponse []byte) {
+	go apiRequest("POST", apiRequestOptions{payload: jsonResponse}, "CHAT_HISTORY_URL", nil, nil)
 }
 
 func getChatHistory(channelId string) ChatHistory {

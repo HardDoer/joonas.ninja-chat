@@ -9,10 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
-	client := &http.Client{}
+	client := &http.Client{Timeout: 5 * time.Second}
 	url := os.Getenv(env)
 	var req *http.Request
 	var payload *bytes.Buffer
@@ -29,7 +30,7 @@ func apiRequest(method string, requestOptions apiRequestOptions, env string, suc
 	}
 	if err != nil {
 		log.Print("apiRequest():", err)
-		return nil, err
+		return nil, genericError()
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", `Basic `+
@@ -37,13 +38,13 @@ func apiRequest(method string, requestOptions apiRequestOptions, env string, suc
 	apiResponse, err := client.Do(req)
 	if err != nil {
 		log.Print("apiRequest():", err)
-		return nil, err
+		return nil, genericError()
 	}
 	defer apiResponse.Body.Close()
 	responseBody, err := ioutil.ReadAll(apiResponse.Body)
 	if err != nil {
 		log.Print("apiRequest():", err)
-		return nil, err
+		return nil, genericError()
 	}
 	if apiResponse != nil && apiResponse.Status != "200 OK" {
 		errorResponse := errors.New("Error response: " + url + " " + apiResponse.Status)

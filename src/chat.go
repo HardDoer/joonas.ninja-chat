@@ -55,6 +55,10 @@ func replyMustBeLoggedIn() error {
 	return errors.New("must be logged in for that command to work")
 }
 
+func genericError() error {
+	return errors.New("error executing operation")
+}
+
 func notEnoughParameters() error {
 	return errors.New("not enough parameters. See '/help'")
 }
