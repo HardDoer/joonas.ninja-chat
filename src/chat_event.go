@@ -29,11 +29,11 @@ type tokenValidationRes struct {
 
 func getCommand(command string) (func([]string, *User) error, bool) {
 	var commands = map[string]func([]string, *User) error{
-		CommandWho: handleWhoCommand,
+		CommandWho:        handleWhoCommand,
 		CommandNameChange: handleNameChangeCommand,
-		CommandHelp: handleHelpCommand,
-		CommandChannel: handleChannelCommand,
-		CommandWhereAmI: handleWhereCommand,
+		CommandHelp:       handleHelpCommand,
+		CommandChannel:    handleChannelCommand,
+		CommandWhereAmI:   handleWhereCommand,
 	}
 	commandFn, ok := commands[command]
 	return commandFn, ok
@@ -44,11 +44,11 @@ func handleCommand(body string, user *User) {
 	splitBody = strings.Split(splitBody[1], " ")
 	command := splitBody[0]
 	commandFn, ok := getCommand(command)
-	if (!ok) {
+	if !ok {
 		sendSystemMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
 	} else {
 		err := commandFn(splitBody, user)
-		if (err != nil) {
+		if err != nil {
 			log.Print("handleCommand(): ", err)
 			sendSystemMessage(err.Error(), user, EventErrorNotification)
 		}
@@ -57,16 +57,12 @@ func handleCommand(body string, user *User) {
 
 // handleMessageEvent -
 func handleMessageEvent(body string, user *User) {
-	if len(body) < 256 {
-		if strings.Index(body, "/") != 0 {
-			value, _ := Users.Load(user)
-			user := value.(*User)
-			sendToAllOnChannel(body, user, EventMessage, true, true)
-		} else {
-			handleCommand(body, user)
-		}
+	if strings.Index(body, "/") != 0 {
+		value, _ := Users.Load(user)
+		user := value.(*User)
+		sendToAllOnChannel(body, user, EventMessage, true, true)
 	} else {
-		sendSystemMessage("Message is too long.", user, EventErrorNotification)
+		handleCommand(body, user)
 	}
 }
 

@@ -1,6 +1,6 @@
 module joonas.ninja-chat
 
-go 1.18
+go 1.21
 
 require (
 	github.com/gorilla/websocket v1.4.2

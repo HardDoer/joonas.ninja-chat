@@ -160,10 +160,28 @@ func newChatConnection(connection *websocket.Conn, cookie string) {
 	go heartbeat(&newUser)
 }
 
+func heartbeat(user *User) {
+	log.Print("main():", "Starting heartbeat...")
+	defer func() {
+		log.Print("heartbeat():", "Stopping heartbeat..")
+		user.Connection.Close()
+	}()
+	for {
+		time.Sleep(2 * time.Second)
+		if err := user.write(websocket.PingMessage, nil); err != nil {
+			log.Print("heartbeat():", err.Error())
+			return
+		}
+	}
+}
+
 func reader(user *User) {
 	var readerError error
 	defer func() {
-		log.Print("reader():", readerError)
+		if readerError != nil {
+			log.Print("reader():", readerError.Error())
+		}
+		log.Print("reader(): Closing reader")
 		user.Connection.Close()
 		key, _ := Users.Load(user)
 		user := key.(*User)
