@@ -61,18 +61,12 @@ func httpRequest(method string, url string, requestOptions apiRequestOptions, su
 }
 
 func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
-	if (requestOptions.headers == nil) {
-		requestOptions.headers = map[string]string{}
-	}
 	requestOptions.headers["Content-Type"] = "application/json"
 	requestOptions.headers["Authorization"] =  `Basic `+ base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY")))
 	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
 }
 
 func gatewayApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error){
-	if (requestOptions.headers == nil) {
-		requestOptions.headers = map[string]string{}
-	}
 	requestOptions.headers["Content-Type"] = "application/json"
 	requestOptions.headers["Authorization"] =  `Basic `+ base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY")))
 	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
@@ -82,7 +76,7 @@ func apiLoginRequest(email string, password string) (res gatewayDTO, err error) 
 	var gatewayRes gatewayDTO
 	chatloginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
 	jsonResponse, _ := json.Marshal(chatloginRequest)
-	options := apiRequestOptions{payload: jsonResponse}
+	options := newApiRequestOptions(&apiRequestOptions{payload: jsonResponse})
 	body, err := gatewayApiRequest("POST", options, "CHAT_LOGIN_URL", nil, nil)
 	if err != nil {
 		log.Print("apiLoginRequest():", err)
@@ -95,42 +89,17 @@ func apiLoginRequest(email string, password string) (res gatewayDTO, err error) 
 }
 
 func validateToken(token string) (validationRes tokenValidationRes, err error) {
-	chatTokenRequest := gatewayDTO{Token: token}
-	jsonResponse, err := json.Marshal(chatTokenRequest)
 	var tokenJson tokenValidationRes
-
+	chatTokenRequest := gatewayDTO{Token: token}
+	jsonResponse, _ := json.Marshal(chatTokenRequest)
+	options := newApiRequestOptions(&apiRequestOptions{payload: jsonResponse})
+	body, err := gatewayApiRequest("POST", options, "CHAT_TOKEN_URL", nil, nil)
 	if err != nil {
 		log.Print("validateToken():", err)
 		return tokenJson, err
 	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", os.Getenv("CHAT_TOKEN_URL"), bytes.NewBuffer(jsonResponse))
-	if err != nil {
+	if err := json.Unmarshal(body, &tokenJson); err != nil {
 		log.Print("validateToken():", err)
-		return tokenJson, err
 	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
-	tokenResponse, err := client.Do(req)
-	if err != nil {
-		log.Print("validateToken():", err)
-		return tokenJson, err
-	}
-	if tokenResponse != nil && tokenResponse.Status != "200 OK" {
-		log.Print("validateToken():", "Error response "+tokenResponse.Status)
-		return tokenJson, errors.New("Error response " + tokenResponse.Status)
-	}
-	defer tokenResponse.Body.Close()
-	body, err := ioutil.ReadAll(tokenResponse.Body)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return tokenJson, err
-	}
-	err = json.Unmarshal(body, &tokenJson)
-	if err != nil {
-		log.Print("getChatHistory():", err)
-		return tokenJson, err
-	}
-	return tokenJson, nil
+	return tokenJson, err
 }

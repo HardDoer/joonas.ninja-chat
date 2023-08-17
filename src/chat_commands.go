@@ -54,6 +54,23 @@ type apiRequestOptions struct {
 	headers map[string]string
 }
 
+func newApiRequestOptions(params *apiRequestOptions) apiRequestOptions {
+	a := apiRequestOptions{headers: map[string]string{}}
+	if params == nil {
+		return a
+	}
+	if (params.payload != nil) {
+		a.payload = params.payload
+	}
+	if (params.headers != nil) {
+		a.headers = params.headers
+	}
+	if (a.queryString == "") {
+		a.queryString = params.queryString
+	}
+	return a
+}
+
 type responseFn func([]byte) []byte
 
 type errorResponseFn func([]byte) error
@@ -91,7 +108,7 @@ func handleWhereCommand(_ []string, user *User) error {
 
 func changeNameRequest(user *User, method string, env string, body string, expectedErrorCallback errorResponseFn) error {
 	jsonResponse, _ := json.Marshal(nameChangeDTO{Username: body, CreatorToken: user.Token})
-	_, err := apiRequest(method, apiRequestOptions{payload: jsonResponse}, env, func(response []byte) []byte {
+	_, err := apiRequest(method, newApiRequestOptions(&apiRequestOptions{payload: jsonResponse}), env, func(response []byte) []byte {
 		originalName := user.Name
 		user.Name = body
 		Users.Store(user, user)
