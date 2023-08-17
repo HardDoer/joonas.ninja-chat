@@ -51,6 +51,7 @@ type channelReadResponse struct {
 type apiRequestOptions struct {
 	payload     []byte
 	queryString string
+	headers map[string]string
 }
 
 type responseFn func([]byte) []byte
