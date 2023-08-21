@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func httpRequest(method string, url string, requestOptions apiRequestOptions, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
+func httpRequest(method string, url string, requestOptions apiRequestOptions, successCallback responseFn) ([]byte, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	var req *http.Request
 	var payload *bytes.Buffer
@@ -49,9 +49,6 @@ func httpRequest(method string, url string, requestOptions apiRequestOptions, su
 	if apiResponse != nil && apiResponse.Status != "200 OK" {
 		errorResponse := errors.New("Error response: " + url + " " + apiResponse.Status)
 		log.Print("apiRequest():", errorResponse)
-		if expectedErrorCallback != nil {
-			return nil, expectedErrorCallback(responseBody)
-		}
 		return nil, errorResponse
 	}
 	if successCallback != nil {
@@ -65,14 +62,14 @@ func addBasicAuthHeaders(headers map[string]string, token string) {
 	headers["Authorization"] =  `Basic `+ token
 }
 
-func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
+func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn) ([]byte, error) {
 	addBasicAuthHeaders(requestOptions.headers, base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
+	return httpRequest(method, os.Getenv(env), requestOptions, successCallback)
 }
 
-func gatewayApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error){
+func gatewayApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn) ([]byte, error){
 	addBasicAuthHeaders(requestOptions.headers, base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
-	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
+	return httpRequest(method, os.Getenv(env), requestOptions, successCallback)
 }
 
 func apiLoginRequest(email string, password string) (res gatewayDTO, err error) {
@@ -80,7 +77,7 @@ func apiLoginRequest(email string, password string) (res gatewayDTO, err error) 
 	chatloginRequest := chatLogin{Scope: "chat", GrantType: "client_credentials", Email: email, Password: password}
 	jsonResponse, _ := json.Marshal(chatloginRequest)
 	options := newApiRequestOptions(&apiRequestOptions{payload: jsonResponse})
-	body, err := gatewayApiRequest("POST", options, "CHAT_LOGIN_URL", nil, nil)
+	body, err := gatewayApiRequest("POST", options, "CHAT_LOGIN_URL", nil)
 	if err != nil {
 		log.Print("apiLoginRequest():", err)
 		return gatewayRes, err
@@ -96,7 +93,7 @@ func validateToken(token string) (validationRes tokenValidationRes, err error) {
 	chatTokenRequest := gatewayDTO{Token: token}
 	jsonResponse, _ := json.Marshal(chatTokenRequest)
 	options := newApiRequestOptions(&apiRequestOptions{payload: jsonResponse})
-	body, err := gatewayApiRequest("POST", options, "CHAT_TOKEN_URL", nil, nil)
+	body, err := gatewayApiRequest("POST", options, "CHAT_TOKEN_URL", nil)
 	if err != nil {
 		log.Print("validateToken():", err)
 		return tokenJson, err

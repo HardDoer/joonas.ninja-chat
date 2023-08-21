@@ -13,11 +13,11 @@ type ChatHistory struct {
  
 // updateChatHistory - Adds the parameter defined chat history entry to chat history
 func updateChatHistory(jsonResponse []byte) {
-	go apiRequest("POST", newApiRequestOptions(&apiRequestOptions{payload: jsonResponse}), "CHAT_HISTORY_URL", nil, nil)
+	go apiRequest("POST", newApiRequestOptions(&apiRequestOptions{payload: jsonResponse}), "CHAT_HISTORY_URL", nil)
 }
 
 func getChatHistory(channelId string) ChatHistory {
-	res, err := apiRequest("GET", newApiRequestOptions(&apiRequestOptions{queryString: "?channelId=" + channelId}), "CHAT_HISTORY_URL", nil, nil)
+	res, err := apiRequest("GET", newApiRequestOptions(&apiRequestOptions{queryString: "?channelId=" + channelId}), "CHAT_HISTORY_URL", nil)
 	if err != nil {
 		log.Print("getChatHistory():", err)
 		return ChatHistory{}
