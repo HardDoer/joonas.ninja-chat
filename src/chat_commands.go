@@ -210,7 +210,6 @@ func handleChannelJoin(commands []string, user *User) error {
 	}
 	var parameter1 = commands[2]
 	var readResponse channelReadResponse
-	sendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification, false, false)
 	if len(parameter1) < 1 || parameter1 == PublicChannelName {
 		user.CurrentChannelId = ""
 		parameter1 = PublicChannelName
@@ -227,6 +226,7 @@ func handleChannelJoin(commands []string, user *User) error {
 		json.Unmarshal(channelResponse, &readResponse)
 		user.CurrentChannelId = readResponse.Name
 	}
+	sendToOtherOnChannel(user.Name+" went looking for better content.", user, EventNotification, false, false)
 	handleJoin(user)
 	sendSystemMessage("Succesfully joined channel '"+parameter1+"'", user, EventNotification)
 	return nil
