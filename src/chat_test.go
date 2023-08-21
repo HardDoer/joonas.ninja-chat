@@ -119,7 +119,7 @@ func TestErrorWhenMessageTooLong(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))
 	_, _, err = ws.ReadMessage()
-	assert.Equal(t, true, err.Error() == "websocket: close 1009 (message too big)")
+	assert.Equal(t, true, err != nil && err.Error() == "websocket: close 1009 (message too big)")
 }
 
 func TestChangeName(t *testing.T) {
