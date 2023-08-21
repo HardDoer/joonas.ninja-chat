@@ -104,10 +104,7 @@ func TestSendMessage(t *testing.T) {
 		"Response to a normal chatmessage should be valid.")
 }
 
-// TODO. Tee erilainen testi tän testaamiseksi kun toi limitti katotaan eri tavalla nykyää.
-/*
 func TestErrorWhenMessageTooLong(t *testing.T) {
-	var responseData EventData
 	ws, server := testSetup(t)
 	defer func() {
 		server.Close()
@@ -117,21 +114,14 @@ func TestErrorWhenMessageTooLong(t *testing.T) {
 	assert.Nil(t, err)
 	_, _, err = ws.ReadMessage()
 	assert.Nil(t, err)
-	testRequest := EventData{Event: EventMessage, Body: "Testing messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting message"}
+	testRequest := EventData{Event: EventMessage, Body: "Testing messageTestingTesting messageTesting messageTesting messageTesting messageTesting messageTestiTesting messageTesting messageTesting messageTesting messageTesting messageTestiTesting messageTesting messageTesting messageTesting messageTesting messageTestiTesting messageTesting messageTesting messageTesting messageTesting messageTestiTesting messageTesting messageTesting messageTesting messageTesting messageTesti messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting messageTesting message"}
 	jsonResponse, err := json.Marshal(testRequest)
 	assert.Nil(t, err)
 	assert.Nil(t, ws.WriteMessage(websocket.TextMessage, jsonResponse))
-	_, message, err := ws.ReadMessage()
-	assert.Nil(t, err)
-	readerError := json.Unmarshal(message, &responseData)
-	assert.Nil(t, readerError)
-	assert.Equal(t, true, responseData.Body == "Message is too long." &&
-		responseData.UserCount == 1 &&
-		responseData.Name == "" &&
-		responseData.Event == EventErrorNotification,
-		"Error happens when chat message is too long.")
+	_, _, err = ws.ReadMessage()
+	assert.Equal(t, true, err.Error() == "websocket: close 1009 (message too big)")
 }
-*/
+
 func TestChangeName(t *testing.T) {
 	var responseData EventData
 	ws, server := testSetup(t)
