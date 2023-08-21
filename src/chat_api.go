@@ -60,15 +60,18 @@ func httpRequest(method string, url string, requestOptions apiRequestOptions, su
 	return responseBody, nil
 }
 
+func addBasicAuthHeaders(headers map[string]string, token string) {
+	headers["Content-Type"] = "application/json"
+	headers["Authorization"] =  `Basic `+ token
+}
+
 func apiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error) {
-	requestOptions.headers["Content-Type"] = "application/json"
-	requestOptions.headers["Authorization"] =  `Basic `+ base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY")))
+	addBasicAuthHeaders(requestOptions.headers, base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
 	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
 }
 
 func gatewayApiRequest(method string, requestOptions apiRequestOptions, env string, successCallback responseFn, expectedErrorCallback errorResponseFn) ([]byte, error){
-	requestOptions.headers["Content-Type"] = "application/json"
-	requestOptions.headers["Authorization"] =  `Basic `+ base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY")))
+	addBasicAuthHeaders(requestOptions.headers, base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("GATEWAY_KEY"))))
 	return httpRequest(method, os.Getenv(env), requestOptions, successCallback, expectedErrorCallback)
 }
 
