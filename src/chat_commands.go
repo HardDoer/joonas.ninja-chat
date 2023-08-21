@@ -42,6 +42,33 @@ type channelReadResponse struct {
 	Admin   string `json:"admin"`
 }
 
+func getCommand(command string) (func([]string, *User) error, bool) {
+	var commands = map[string]func([]string, *User) error{
+		CommandWho:        handleWhoCommand,
+		CommandNameChange: handleNameChangeCommand,
+		CommandHelp:       handleHelpCommand,
+		CommandChannel:    handleChannelCommand,
+		CommandWhereAmI:   handleWhereCommand,
+	}
+	commandFn, ok := commands[command]
+	return commandFn, ok
+}
+
+func handleCommand(body string, user *User) {
+	var splitBody = strings.Split(body, "/")
+	splitBody = strings.Split(splitBody[1], " ")
+	command := splitBody[0]
+	commandFn, ok := getCommand(command)
+	if !ok {
+		sendSystemMessage("Command not recognized. Type '/help' for list of chat commands.", user, EventErrorNotification)
+	} else {
+		err := commandFn(splitBody, user)
+		if err != nil {
+			log.Print("handleCommand(): ", err)
+			sendSystemMessage(err.Error(), user, EventErrorNotification)
+		}
+	}
+}
 // handleHelpCommand - dibadaba
 func handleHelpCommand(_ []string, user *User) error {
 	var response []helpDTO
