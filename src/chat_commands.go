@@ -1,14 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -222,7 +217,7 @@ func handleChannelJoin(commands []string, user *User) error {
 	} else {
 		jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: parameter1})
 		if err != nil {
-			log.Print("handleChannelCommand():", err)
+			log.Print("handleChannelJoin():", err)
 			return errors.New("error joining channel: '" + parameter1 + "'")
 		}
 		channelResponse, err := apiRequest("POST", newApiRequestOptions(&apiRequestOptions{payload: jsonResponse}), "CHAT_CHANNEL_LIST_URL", nil)
@@ -255,22 +250,16 @@ func handleChannelDefault(params []string, user *User) error {
 	if len(user.CurrentChannelId) == 0 {
 		return errors.New("you are currently on the 'public' channel which does not need to be set as default")
 	}
-	client := &http.Client{}
-	jsonResponse, _ := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: user.CurrentChannelId})
-	req, _ := http.NewRequest("PUT", os.Getenv("CHAT_CHANNEL_DEFAULT_URL"), bytes.NewBuffer(jsonResponse))
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", `Basic `+
-		base64.StdEncoding.EncodeToString([]byte(os.Getenv("APP_ID")+":"+os.Getenv("API_KEY"))))
-	channelResponse, err := client.Do(req)
+	jsonResponse, err := json.Marshal(channelGenericDTO{CreatorToken: user.Token, ChannelId: user.CurrentChannelId})
 	if err != nil {
-		log.Print("handleChannelCommand():", err)
-		// Palauta joku virhe
+		log.Print("handleChannelDefault():", err)
+		return errors.New("error setting default channel")
 	}
-	if channelResponse != nil && channelResponse.Status != "200 OK" {
-		log.Print("handleChannelCommand():", "Error response "+channelResponse.Status)
+	_, err = apiRequest("PUT", newApiRequestOptions(&apiRequestOptions{payload: jsonResponse}), "CHAT_CHANNEL_DEFAULT_URL", nil)
+	if err != nil {
+		return errors.New("error setting default channel")
 	}
 	sendSystemMessage("Successfully set channel: '"+user.CurrentChannelId+"' as your default channel.", user, EventNotification)
-	defer channelResponse.Body.Close()
 	return nil
 }
 
