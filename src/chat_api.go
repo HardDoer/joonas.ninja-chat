@@ -12,6 +12,31 @@ import (
 	"time"
 )
 
+type apiRequestOptions struct {
+	payload     []byte
+	queryString string
+	headers     map[string]string
+}
+
+type responseFn func([]byte) []byte
+
+func newApiRequestOptions(params *apiRequestOptions) apiRequestOptions {
+	a := apiRequestOptions{headers: map[string]string{}}
+	if params == nil {
+		return a
+	}
+	if params.payload != nil {
+		a.payload = params.payload
+	}
+	if params.headers != nil {
+		a.headers = params.headers
+	}
+	if a.queryString == "" {
+		a.queryString = params.queryString
+	}
+	return a
+}
+
 func httpRequest(method string, url string, requestOptions apiRequestOptions, successCallback responseFn) ([]byte, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	var req *http.Request
